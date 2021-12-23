@@ -1,3 +1,4 @@
+import cv2
 import tensorflow as tf
 from tensorflow import keras
 from collections import deque
@@ -20,92 +21,141 @@ class DQNAgent:
 
         DQNA.replay_memory = deque(maxlen=deque_len)
 
+    # conv2D model
     def create_model(DQNA):
-        if load_model or play:
+        if load_model:
             model = keras.models.load_model(load_model_name)
-        elif train:
+        else:
             model = keras.Sequential([
-                keras.layers.Conv2D(512, (10, 10), input_shape=DQNA.state_size, activation=tf.nn.relu),
+                keras.layers.Conv2D(128, (2, 2), input_shape=DQNA.state_size, activation=tf.nn.relu),
                 keras.layers.MaxPool2D(2, 2),
-                keras.layers.Dropout(0.25),
+                keras.layers.Dropout(0.2),
 
-                keras.layers.Conv2D(512, (5, 5), activation=tf.nn.relu),
+                keras.layers.Conv2D(64, (2, 2), activation=tf.nn.relu),
                 keras.layers.MaxPool2D(2, 2),
-                keras.layers.Dropout(0.17),
-
-                keras.layers.Conv2D(256, (3, 3), activation=tf.nn.relu),
-                keras.layers.MaxPool2D(2, 2),
-                keras.layers.Dropout(0.12),
+                keras.layers.Dropout(0.2),
 
                 keras.layers.Flatten(),
-                keras.layers.Dense(128, activation=tf.nn.relu),
+                # keras.layers.Dense(64, activation=tf.nn.relu),
+                keras.layers.Dense(32),
                 keras.layers.Dense(DQNA.action_size, activation='linear')
             ])
 
-            model.compile(optimizer=keras.optimizers.Adam(lr=lr_rate),
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=lr_rate),
                           loss='mse',
                           metrics=['accuracy']
                           )
         return model
 
+    # test model dense
+    def create_model_v2(DQNA):
+        if load_model:
+            model = keras.models.load_model(load_model_name)
+        else:
+            model = keras.Sequential([
+                keras.layers.Flatten(input_shape=DQNA.state_size),
+
+                keras.layers.Dense(128, activation=tf.nn.relu),
+
+                keras.layers.Dense(128, activation=tf.nn.relu),
+
+                keras.layers.Dense(64, activation=tf.nn.relu),
+
+                keras.layers.Dense(DQNA.action_size, activation='linear')
+            ])
+
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=lr_rate),
+                          loss='mse',
+                          metrics=['accuracy']
+                          )
+        print("wrong place")
+        exit()
+
+        return model
+
     def update_replay_memory(DQNA, state, action, reward, next_state, done):
         DQNA.replay_memory.append((state, action, reward, next_state, done))
 
-    def train_2_model(DQNA, e):
+    def train_model(DQNA, e):
         if len(DQNA.replay_memory) < min_memory:
             return
 
+        # random patch
         minibatch = random.sample(DQNA.replay_memory, batch_size)
 
+        # choice current states
         current_states = np.array([transition[0] for transition in minibatch])
-        current_qs_list = DQNA.model.predict(current_states)
-        # current_qs_list = DQNA.model(current_states, training=False)
+        # get the q values
+        current_qs_list = DQNA.model(current_states, training=False)
 
+        # choice the new states
         new_current_states = np.array([transition[3] for transition in minibatch])
-        # future_qs_list = DQNA.target_model.predict(new_current_states)
+        # get the q values
         future_qs_list = DQNA.target_model(new_current_states, training=False)
 
         x = []
         y = []
-
         for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
             if not done:
+                # calculate max reward
                 max_future_q = np.max(future_qs_list[index])
                 new_q = reward + discount * max_future_q
             else:
                 new_q = reward
 
-            current_qs = current_qs_list[index]
+            # get the q values
+            current_qs = np.array(current_qs_list[index])
+            # change the action q value to the reward
             current_qs[action] = new_q
 
             x.append(current_state)
             y.append(current_qs)
 
-        DQNA.model.fit(np.array(x), np.array(y), batch_size=batch_size, verbose=0, shuffle=False)
+        # fit model to the rewards
+        DQNA.model.fit(
+            np.array(x),
+            np.array(y),
+            batch_size=batch_size,
+            verbose=0,
+            shuffle=False,
+        )
 
+        # update target model
         if e % update_rate == 0:
             DQNA.target_model.set_weights(DQNA.model.get_weights())
 
-    def get_qs(DQNA, state, r, step):
-        if train and step > train_step:
-            if np.random.rand() > DQNA.epsilon:
-                act_values = DQNA.model.predict(np.array(state).reshape(-1, *state.shape))[0]
-                action = np.argmax(act_values)
-            else:
-                action = np.random.randint(DQNA.action_size)
-                # if DQNA.epsilon > 0.7:
-                #     if action == 0 and np.all(r == [-1, 0]):
-                #         action = 1
-                #     elif action == 1 and np.all(r == [1, 0]):
-                #         action = 2
-                #     elif action == 2 and np.all(r == [0, 1]):
-                #         action = 3
-                #     elif action == 3 and np.all(r == [0, -1]):
-                #         action = 0
-        else:
+    def get_qs(DQNA, state, direction):
+        if not train:
+            DQNA.epsilon = 0
+        if np.random.rand() > DQNA.epsilon:
+            # predict action
             act_values = DQNA.model.predict(np.array(state).reshape(-1, *state.shape))[0]
             action = np.argmax(act_values)
+            # change action mode
+            movement = DQNA.change_action_type(action)
+        else:
+            # random action
+            action = np.random.randint(DQNA.action_size)
+            # change action mode
+            movement = DQNA.change_action_type(action)
+            # no backwards with random action
+            while np.all(np.array(movement) * -1 == direction):
+                action = np.random.randint(DQNA.action_size)
+                movement = DQNA.change_action_type(action)
+
+        return action, movement
+
+    def change_action_type(self, action):
+        if action == 0:
+            action = [-1, 0]
+        elif action == 1:
+            action = [1, 0]
+        elif action == 2:
+            action = [0, -1]
+        elif action == 3:
+            action = [0, 1]
+        else:
+            print("ERROR")
+            quit()
 
         return action
-
-
