@@ -92,7 +92,6 @@ class game:
 
         # move head
         self.head = self.head + movement
-
         return
 
     # check collision

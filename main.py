@@ -39,7 +39,6 @@ class main:
                 distance_1 = abs(game.head - cordinations)
                 distance = np.sum(distance_1)
 
-
                 len_1 = input_shape.shape[0] - 1
                 max_len = len_1 * input_shape.shape[1]
                 # save distances and cordinations

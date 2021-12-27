@@ -23,6 +23,7 @@ penalty = 3
 apple_score = 8
 distance_score = 1
 
+
 # DQNAgent settings
 input_shape = [4, 8]
 start_epsilon = 1

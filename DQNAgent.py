@@ -45,7 +45,6 @@ class DQNAgent:
                           loss='mse',
                           metrics=['accuracy']
                           )
-
             print("wrong place")
             exit()
         return model
