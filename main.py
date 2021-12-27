@@ -14,70 +14,60 @@ class main:
         self.step = 0
 
     def create_state(self):
-        # create background with walls and snake
-        # dtype = np.uint8
-        background = np.ones((size[0] + 2, size[1] + 2), dtype=np.int32)
-        background[1:size[0] + 1, 1:size[1] + 1] = 0
-        background[game.apple[0]+1, game.apple[1]+1] = 10
-        background[game.head[0]+1, game.head[1]+1] = 5
-
-        for i in range(game.snake_len):
-            x = i * 2
-            background[game.snake[x]+1, game.snake[x + 1]+1] = 1
-
-        # snake direction
+        # head position
+        head = game.head
+        # direction
         back = np.array([game.snake[0], game.snake[1]])
+        dir = game.head - back
+        # apple direction
+        apple_dir = game.apple - game.head
+        # walls distance
+        walls = size - game.head
+
+        # save x amount of closest snake
+        snake_len = int(len(game.snake) / 2)
+        snake_cordinations = []
+        lengths = []
+        for i in range(snake_len):
+                # snake cordination
+                k = i * 2
+                snake_1 = game.snake[k]
+                snake_2 = game.snake[k+1]
+                cordinations = np.array([snake_1, snake_2])
+
+                # cordination distance from snake head
+                distance_1 = abs(game.head - cordinations)
+                distance = np.sum(distance_1)
+
+
+                len_1 = input_shape.shape[0] - 1
+                max_len = len_1 * input_shape.shape[1]
+                # save distances and cordinations
+                if len(lengths) < max_len:
+                    lengths.append(distance)
+                    snake_cordinations = np.append(snake_cordinations, cordinations)
+                # if snake is too long save the closest
+                else:
+                    max = np.max(lengths)
+                    if distance < max:
+                        for l in range(len(lengths)):
+                            if lengths[l] == max:
+                                lengths[l] = distance
+                                snake_cordinations[l] = cordinations[0]
+                                snake_cordinations[l+1] = cordinations[1]
+
+        while len(snake_cordinations) < 24:
+            snake_cordinations = np.append(snake_cordinations, 0)
+
+        state = np.array([head, dir, apple_dir, walls])
+        state = np.append(state, snake_cordinations)
+
+        state = np.reshape(state, (4,8))
+        # state = np.expand_dims(state, -1)
+
+        state = state / 50
 
         direction = game.head - back
-        x = input_shape.shape[1]
-        y = input_shape.shape[0]
-        y_half = int((y-1) / 2)
-        x_half = int((x-1) / 2)
-
-        # create state to ai
-        if direction[0] == 0:
-            if direction[1] == 1:
-                x_0 = game.head[1]
-                x_1 = x_0 + x
-            else:
-                x_0 = game.head[1] - x + 3
-                x_1 = game.head[1] + 3
-            y_0 = game.head[0] - y_half + 1
-            y_1 = game.head[0] + y_half + 2
-
-        else:
-            if direction[0] == 1:
-                y_0 = game.head[0]
-                y_1 = game.head[0] + y
-            else:
-                y_0 = game.head[0] - y + 3
-                y_1 = game.head[0] + 3
-            x_0 = game.head[1] - x_half + 1
-            x_1 = game.head[1] + x_half + 2
-
-
-        # check if state if outside of background
-        if x_1 > size[1] + 2:
-            x_1 = size[1] + 2
-            x_0 = x_1 - x
-        elif x_0 < 0:
-            x_0 = 0
-            x_1 = x
-        if y_0 < 0:
-            y_0 = 0
-            y_1 = y
-        elif y_1 > size[0] + 2:
-            y_1 = size[0] + 2
-            y_0 = y_1 - y
-
-        state = background[y_0:y_1, x_0:x_1]
-        state = state / 10
-
-        # apple_dir = game.apple - game.head
-        # state[0,0] = apple_dir[0]
-        # state[0,1] = apple_dir[1]
-
-        state = np.expand_dims(state, -1)
         return state, direction
 
     def reward_calculation(self, done, point):
@@ -114,12 +104,12 @@ if __name__ == '__main__':
     session = tf.compat.v1.Session(config=config)
 
     input_shape = np.zeros((input_shape[0], input_shape[1]))
-    input_shape = np.expand_dims(input_shape, -1)
+    # input_shape = np.expand_dims(input_shape, -1)
     DQNA = DQNAgent(input_shape)
 
-    start = time.time()
     # define episodes
     for e in tqdm(range(1, n_episodes + 1), ascii=True, unit='episodes'):
+        start = time.time()
         # count reward
         ep_reward = 0
         # starting step
@@ -138,18 +128,13 @@ if __name__ == '__main__':
             state, direction = main.create_state()
 
             # pick action
-            action, movement = DQNA.get_qs(state, direction)
-            # action = int(input("pres"))
-
-            # check if movement = backward == dead
-            done = game.check_back(movement, direction)
+            action = DQNA.get_qs(state)
 
             # move snake
-            game.move_snake(movement)
+            game.move_snake(action, direction)
 
-            if not done:
-                # check action
-                done, point = game.check()
+            # check snake
+            done, point = game.check()
 
             # reward calculations
             main.reward_calculation(done, point)
@@ -196,14 +181,14 @@ if __name__ == '__main__':
         avg_step = main.step / e
 
         if e % display_rate == 0:
+            loop_time = round(time.time() - start, 2)
             print("")
-            print("Round", e, "Epsilon:", round(DQNA.epsilon, 3), "Avg step", round(avg_step, 2), "Avg reward", round(avg_reward, 2))
+            print("Round", e, "Epsilon:", round(DQNA.epsilon, 3),"time", loop_time, "Avg step", round(avg_step, 2), "Avg reward", round(avg_reward, 2))
 
         if save_model and train:
             if e % save_rate == 0:
+
                 DQNA.model.save(f'models/{model_name}_episode_{e:}_avg_{round(avg_reward, 2):}.model')
                 print("Saved: Epsilon:", round(DQNA.epsilon, 3))
-
-    print("loop time", round(time.time() - start, 2))
 
 

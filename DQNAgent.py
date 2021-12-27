@@ -9,14 +9,14 @@ from settings import *
 class DQNAgent:
     def __init__(DQNA, input_shape):
         DQNA.state_size = input_shape.shape
-        DQNA.action_size = 4
+        DQNA.action_size = 3
         DQNA.epsilon = start_epsilon
 
         # Main model
-        DQNA.model = DQNA.create_model()
+        DQNA.model = DQNA.create_model_v2()
 
         # Target network
-        DQNA.target_model = DQNA.create_model()
+        DQNA.target_model = DQNA.create_model_v2()
         DQNA.target_model.set_weights(DQNA.model.get_weights())
 
         DQNA.replay_memory = deque(maxlen=deque_len)
@@ -31,13 +31,13 @@ class DQNAgent:
                 keras.layers.MaxPool2D(2, 2),
                 keras.layers.Dropout(0.2),
 
-                keras.layers.Conv2D(64, (2, 2), activation=tf.nn.relu),
+                keras.layers.Conv2D(128, (2, 2), activation=tf.nn.relu),
                 keras.layers.MaxPool2D(2, 2),
                 keras.layers.Dropout(0.2),
 
                 keras.layers.Flatten(),
                 # keras.layers.Dense(64, activation=tf.nn.relu),
-                keras.layers.Dense(32),
+                keras.layers.Dense(64),
                 keras.layers.Dense(DQNA.action_size, activation='linear')
             ])
 
@@ -45,6 +45,9 @@ class DQNAgent:
                           loss='mse',
                           metrics=['accuracy']
                           )
+
+            print("wrong place")
+            exit()
         return model
 
     # test model dense
@@ -55,11 +58,11 @@ class DQNAgent:
             model = keras.Sequential([
                 keras.layers.Flatten(input_shape=DQNA.state_size),
 
-                keras.layers.Dense(128, activation=tf.nn.relu),
-
-                keras.layers.Dense(128, activation=tf.nn.relu),
+                keras.layers.Dense(64, activation=tf.nn.relu),
 
                 keras.layers.Dense(64, activation=tf.nn.relu),
+
+                keras.layers.Dense(32, activation=tf.nn.relu),
 
                 keras.layers.Dense(DQNA.action_size, activation='linear')
             ])
@@ -68,8 +71,6 @@ class DQNAgent:
                           loss='mse',
                           metrics=['accuracy']
                           )
-        print("wrong place")
-        exit()
 
         return model
 
@@ -124,38 +125,17 @@ class DQNAgent:
         if e % update_rate == 0:
             DQNA.target_model.set_weights(DQNA.model.get_weights())
 
-    def get_qs(DQNA, state, direction):
+    def get_qs(DQNA, state):
         if not train:
             DQNA.epsilon = 0
+
         if np.random.rand() > DQNA.epsilon:
             # predict action
             act_values = DQNA.model.predict(np.array(state).reshape(-1, *state.shape))[0]
             action = np.argmax(act_values)
-            # change action mode
-            movement = DQNA.change_action_type(action)
         else:
             # random action
             action = np.random.randint(DQNA.action_size)
-            # change action mode
-            movement = DQNA.change_action_type(action)
-            # no backwards with random action
-            while np.all(np.array(movement) * -1 == direction):
-                action = np.random.randint(DQNA.action_size)
-                movement = DQNA.change_action_type(action)
-
-        return action, movement
-
-    def change_action_type(self, action):
-        if action == 0:
-            action = [-1, 0]
-        elif action == 1:
-            action = [1, 0]
-        elif action == 2:
-            action = [0, -1]
-        elif action == 3:
-            action = [0, 1]
-        else:
-            print("ERROR")
-            quit()
 
         return action
+

@@ -53,16 +53,23 @@ class game:
 
         return
 
-    # check if action == backwards
-    def check_back(self, movement, direction):
-        done = False
-        # check if direction is backward = dead
-        if np.all(np.array(movement) * -1 == direction):
-            done = True
-        return done
-
     # movements
-    def move_snake(self, movement):
+    def move_snake(self, action, direction):
+        movement = [0, 0]
+        if action == 1:
+            movement = direction
+        else:
+            movement[0] = direction[1]
+            movement[1] = direction[0]
+            if action == 0:
+                if direction[0] == 0:
+                    movement[0] *= -1
+                    movement[1] *= -1
+            if action == 2:
+                if direction[1] == 0:
+                    movement[0] *= -1
+                    movement[1] *= -1
+
         # save last snake
         self.snake_add = np.array([self.snake[len(self.snake) - 2], self.snake[len(self.snake) - 1]])
 
@@ -114,9 +121,10 @@ class game:
             # check apple
             if np.all(self.head == self.apple):
                 point = True
-                game.spawn_apple(self)
                 # add to snake
                 self.snake = np.append(self.snake, self.snake_add)
+                # spawn new apple
+                game.spawn_apple(self)
 
         return done, point
 
