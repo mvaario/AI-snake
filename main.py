@@ -1,11 +1,13 @@
 import cv2
-import numpy as np
 from game import *
 from DQNAgent import *
 from tqdm import tqdm
+from tensorflow.keras.callbacks import TensorBoard
 # from tensorflow.compat.v1 import ConfigProto
 # from tensorflow.compat.v1 import InteractiveSession
 import time
+
+
 
 class main:
     def __init__(self):
@@ -14,37 +16,33 @@ class main:
         self.step = 0
 
     def create_state(self):
-        # head position
-        head = game.head
         # direction
         back = np.array([game.snake[0], game.snake[1]])
-        dir = game.head - back
-        # apple direction
-        apple_dir = game.apple - game.head
+        direction = game.head - back
         # walls distance
         walls = size - game.head
 
         # save x amount of closest snake
         snake_len = int(len(game.snake) / 2)
-        snake_cordinations = []
         lengths = []
+        len_1 = input_shape.shape[0] - 1
+        max_len = len_1 * input_shape.shape[1]
         for i in range(snake_len):
                 # snake cordination
                 k = i * 2
                 snake_1 = game.snake[k]
                 snake_2 = game.snake[k+1]
-                cordinations = np.array([snake_1, snake_2])
+                coordination = np.array([snake_1, snake_2])
 
-                # cordination distance from snake head
-                distance_1 = abs(game.head - cordinations)
+                # coordination distance from snake head
+                distance_1 = abs(game.head - coordination)
                 distance = np.sum(distance_1)
 
-                len_1 = input_shape.shape[0] - 1
-                max_len = len_1 * input_shape.shape[1]
-                # save distances and cordinations
+                snake_coordination = []
+                # save distances and coordination
                 if len(lengths) < max_len:
                     lengths.append(distance)
-                    snake_cordinations = np.append(snake_cordinations, cordinations)
+                    snake_coordination = np.append(snake_coordination, coordination)
                 # if snake is too long save the closest
                 else:
                     max = np.max(lengths)
@@ -52,21 +50,20 @@ class main:
                         for l in range(len(lengths)):
                             if lengths[l] == max:
                                 lengths[l] = distance
-                                snake_cordinations[l] = cordinations[0]
-                                snake_cordinations[l+1] = cordinations[1]
+                                snake_coordination[l] = coordination[0]
+                                snake_coordination[l+1] = coordination[1]
 
-        while len(snake_cordinations) < 24:
-            snake_cordinations = np.append(snake_cordinations, 0)
+        while len(snake_coordination) < max_len:
+            snake_coordination = np.append(snake_coordination, 0)
 
-        state = np.array([head, dir, apple_dir, walls])
-        state = np.append(state, snake_cordinations)
+        # create array for ai
+        state = np.array([game.head, direction, game.apple, walls])
+        state = np.append(state, snake_coordination)
 
-        state = np.reshape(state, (4,8))
+        state = np.reshape(state, input_shape.shape)
         # state = np.expand_dims(state, -1)
-
         state = state / 50
 
-        direction = game.head - back
         return state, direction
 
     def reward_calculation(self, done, point):
@@ -105,10 +102,15 @@ if __name__ == '__main__':
     input_shape = np.zeros((input_shape[0], input_shape[1]))
     # input_shape = np.expand_dims(input_shape, -1)
     DQNA = DQNAgent(input_shape)
+    # start timer
+    start = time.time()
+    if logging:
+        webbrowser.open('http://localhost:6006/ ', new=1)
+        # for check terminal: "tensorboard --logdir=logs/
+        # tensorboard_callback = TensorBoard(log_dir='logs\\{}'.format(model_name))
 
     # define episodes
     for e in tqdm(range(1, n_episodes + 1), ascii=True, unit='episodes'):
-        start = time.time()
         # count reward
         ep_reward = 0
         # starting step
@@ -179,15 +181,18 @@ if __name__ == '__main__':
         main.step += step
         avg_step = main.step / e
 
-        if e % display_rate == 0:
+        if e % save_rate == 0:
             loop_time = round(time.time() - start, 2)
+            loop_time = round(loop_time / 60, 2)
+
+            start = time.time()
             print("")
-            print("Round", e, "Epsilon:", round(DQNA.epsilon, 3),"time", loop_time, "Avg step", round(avg_step, 2), "Avg reward", round(avg_reward, 2))
-
-        if save_model and train:
-            if e % save_rate == 0:
-
+            print("Round", e,
+                  "Epsilon:", round(DQNA.epsilon, 3),
+                  save_rate, "Episode time", loop_time,
+                  "Avg step", round(avg_step, 2),
+                  "Avg reward", round(avg_reward, 2)
+                  )
+            if save_model and train:
                 DQNA.model.save(f'models/{model_name}_episode_{e:}_avg_{round(avg_reward, 2):}.model')
                 print("Saved: Epsilon:", round(DQNA.epsilon, 3))
-
-
