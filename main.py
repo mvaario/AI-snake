@@ -13,6 +13,7 @@ class main:
         self.full_reward = 0
         self.step = 0
 
+
         # logging
         self.ten_round_reward = 0
         self.episodes = []

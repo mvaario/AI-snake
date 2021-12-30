@@ -17,6 +17,7 @@ save_model = True
 save_rate = 500
 logging = True
 
+
 n_episodes = 20_000
 step_limit = 150
 step_min = 10

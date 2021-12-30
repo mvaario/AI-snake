@@ -1,6 +1,7 @@
 import numpy as np
 from settings import *
 
+
 class game:
     def __init__(self):
         self.head = []

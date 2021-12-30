@@ -4,7 +4,6 @@ from collections import deque
 import random
 import numpy as np
 from settings import *
-import time
 
 class DQNAgent:
     def __init__(DQNA, input_shape):
