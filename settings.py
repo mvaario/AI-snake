@@ -4,38 +4,38 @@ green = (0, 255, 0)
 red = (0, 0, 255)
 
 display = True
-display_rate = 200
-wait_time = 100
+display_rate = 100
+wait_time = 250
 
-# for check terminal: "tensorboard --logdir=logs/
+# for check terminal: tensorboard --logdir=logs/
 # training settings
-model_name = 'dense_32x2+16_3x8.model'
-load_model_name = 'models/dense_new_info+4000_episode_4500_avg_25.31.model'
-load_model = False
+model_name = 'new_dense_32x2_+7500.model'
+load_model_name = 'models/new_dense_32x2.model_episode_7500_avg_23.8.model'
+load_model = True
 train = True
 save_model = True
 save_rate = 500
 logging = True
 
-n_episodes = 10_000
-step_limit = 50
-step_min = 0
+n_episodes = 20_000
+step_limit = 150
+step_min = 10
 # rewards
-penalty = 3
-apple_score = 8
+penalty = 5
+apple_score = 7
 distance_score = 1
 
 # DQNAgent settings
-input_shape = [3, 8]
+state_size = 24
 start_epsilon = 1
 
-deque_len = 1000
-min_memory = 200
+deque_len = 5000
+min_memory = 500
 batch_size = 64
 epsilon_min = 0.01
-epsilon_decay = 0.99975
+epsilon_decay = 0.9975
 
 lr_rate = 0.001
 discount = 0.95
-update_rate = 10
+update_rate = 5
 

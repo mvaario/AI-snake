@@ -53,7 +53,11 @@ class game:
         return
 
     # movements
-    def move_snake(self, action, direction):
+    def move_snake(self, action):
+        # direction
+        back = np.array([self.snake[0], self.snake[1]])
+        direction = self.head - back
+
         movement = [0, 0]
         if action == 1:
             movement = direction
