@@ -1,6 +1,7 @@
 import numpy as np
 from settings import *
-
+import numba
+from numba import jit, njit, vectorize
 
 class game:
     def __init__(self):
@@ -114,7 +115,7 @@ class game:
         elif self.head[1] <= 0:
             done = True
         else:
-            # check if snake hit it self
+            # check if snake hit itself
             for i in range(self.snake_len):
                 x = i * 2
                 if self.head[0] == self.snake[x] and self.head[1] == self.snake[x + 1]:
