@@ -4,6 +4,7 @@ from collections import deque
 import random
 import numpy as np
 from settings import *
+import time
 
 class DQNAgent:
     def __init__(DQNA, input_shape):
@@ -24,17 +25,15 @@ class DQNAgent:
     def create_model(DQNA):
         if load_model:
             model = keras.models.load_model(load_model_name)
-            print("Loaded model", load_model_name)
-            print("")
         else:
             model = keras.Sequential([
                 keras.layers.Flatten(input_shape=DQNA.state_size),
 
-                keras.layers.Dense(32, activation=tf.nn.relu),
+                keras.layers.Dense(64, activation=tf.nn.relu),
 
                 keras.layers.Dense(32, activation=tf.nn.relu),
 
-                # keras.layers.Dense(16, activation=tf.nn.relu),
+                keras.layers.Dense(16, activation=tf.nn.relu),
 
                 keras.layers.Dense(DQNA.action_size, activation='linear')
             ])
@@ -45,8 +44,8 @@ class DQNAgent:
                           )
         return model
 
-    def update_replay_memory(DQNA, state, action, reward, next_state, done):
-        DQNA.replay_memory.append((state, action, reward, next_state, done))
+    def update_replay_memory(DQNA, state, action, step_reward, next_state, done):
+        DQNA.replay_memory.append((state, action, step_reward, next_state, done))
 
     def train_model(DQNA, e):
         if len(DQNA.replay_memory) < min_memory:
@@ -80,21 +79,29 @@ class DQNAgent:
             # change the action q value to the reward
             current_qs[action] = new_q
 
-            x.append(current_state)
+            # x.append(current_state)
             y.append(current_qs)
 
+        start = time.time()
         # fit model to the rewards, with or without tensorboard
         DQNA.model.fit(
-            np.array(x),
+            current_states,
             np.array(y),
             batch_size=batch_size,
-            verbose=0,
-            shuffle=False
+            verbose=1,
+            shuffle=False,
+            epochs=100
         )
+        print(time.time() - start)
+        # 0.40737056732177734
+        quit()
+
 
         # update target model
         if e % update_rate == 0:
             DQNA.target_model.set_weights(DQNA.model.get_weights())
+
+        print("DONE")
 
     def get_qs(DQNA, state):
         if not train:
@@ -102,7 +109,8 @@ class DQNAgent:
 
         if np.random.rand() > DQNA.epsilon:
             # predict action
-            act_values = DQNA.model.predict(np.array(state).reshape(-1, *state.shape))[0]
+            state = np.reshape(state, (1, state_size[0], state_size[1]))
+            act_values = DQNA.model(state, training=False)
             action = np.argmax(act_values)
         else:
             # random action
