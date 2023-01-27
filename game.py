@@ -1,144 +1,211 @@
-import numpy as np
+import time
+
 from settings import *
+import numpy as np
 
 
 class game:
     def __init__(self):
-        self.head = []
-        self.snake = []
-        self.apple = []
-        self.snake_add = []
-
-        self.snake_len = 0
-
-        self.old_snake = np.array([0, 0])
+        self.snake = np.zeros([s_game_amount, s_size[0] * s_size[1], 2])
+        self.snake_old = np.zeros([s_game_amount, 1, 2])
+        self.done = np.ones([s_game_amount, 1], dtype=bool)
 
     # spawn head and body
-    def spawn_snake(self):
+    def spawn_snake(self, snake_number):
+        # Clear snake
+        self.snake[snake_number, 0:] = 0
+
         # spawn snake head
-        self.head = np.random.randint(1, size[1] - 1, size=2)
+        head = np.random.randint(1, s_size[1] - 1, size=2)
 
         # spawn snake body
         snake = np.array([-1, -2])
-        while np.any(1 > snake) or np.any(snake > (size[0] - 2)):
+        while np.any(0 > snake) or np.any(snake > (s_size[0] - 1)):
             snake = np.random.randint(0, 4)
             if snake == 0:
-                snake = np.array([self.head[0] - 1, self.head[1]])
+                snake = np.array([head[0] - 1, head[1]])
             elif snake == 1:
-                snake = np.array([self.head[0] + 1, self.head[1]])
+                snake = np.array([head[0] + 1, head[1]])
             elif snake == 2:
-                snake = np.array([self.head[0], self.head[1] - 1])
+                snake = np.array([head[0], head[1] - 1])
             else:
-                snake = np.array([self.head[0], self.head[1] + 1])
+                snake = np.array([head[0], head[1] + 1])
 
-        self.snake = snake
+        self.snake[snake_number, 1] = head
+        self.snake[snake_number, 2] = snake
         return
 
     # spawn apple
-    def spawn_apple(self):
+    def spawn_apple(self, snake_number):
+        # get correct snake
+        snake = self.snake[snake_number]
+        snake = snake[1:]
+
         # spawn apple
-        apple = np.random.randint(1, size[0] - 2, size=2)
-        self.snake_len = int(len(self.snake) / 2)
+        apple = np.random.randint(0, s_size[0], size=2)
 
         # check apple position
-        for i in range(self.snake_len):
-            x = i * 2
-            if apple[0] == self.snake[x] and apple[1] == self.snake[x + 1]:
-                apple = self.head
+        for i in range(len(snake)):
+            if np.all(apple == snake[i]):
+                # let's change apple position and see if it works
+                for i in range(s_size[0]):
+                    if apple[1] == s_size[0]:
+                        break
+                    apple[1] += 1
+                    if np.all(apple != snake[i]):
+                        break
 
-        if np.all(apple == self.head):
-            game.spawn_apple(self)
+                # Spawn new apple
+                if np.all(apple == snake[i]):
+                    game.spawn_apple(self, snake_number)
 
-        self.apple = apple
+            if np.all(snake[i] == 0) and np.all(snake[i+1] == 0):
+                break
 
+        # Apple position is in front
+        self.snake[snake_number, 0] = apple
         return
 
     # movements
-    def move_snake(self, action):
+    def move_snake(self, action, snake_number):
         # direction
-        back = np.array([self.snake[0], self.snake[1]])
-        direction = self.head - back
+        # Again no idea why it needs to be copied...
+        snake = np.copy(self.snake[snake_number])
+        back = snake[2]
+        direction = snake[1] - back
 
-        movement = [0, 0]
-        if action == 1:
-            movement = direction
+        # get movement derection (action size = 4)
+        if action == 0:
+            movement = [-1, 0]
+        elif action == 1:
+            movement = [1, 0]
+        elif action == 2:
+            movement = [0, -1]
+        elif action == 3:
+            movement = [0, 1]
         else:
-            movement[0] = direction[1]
-            movement[1] = direction[0]
-            if action == 0:
-                if direction[0] == 0:
-                    movement[0] *= -1
-                    movement[1] *= -1
-            if action == 2:
-                if direction[1] == 0:
-                    movement[0] *= -1
-                    movement[1] *= -1
+            print("Wrong action")
+            quit()
 
-        # save last snake
-        self.snake_add = np.array([self.snake[len(self.snake) - 2], self.snake[len(self.snake) - 1]])
 
-        # copy snake
-        self.old_snake = np.array(self.snake)
-        # move first part of the snake
-        self.snake[0] = self.head[0]
-        self.snake[1] = self.head[1]
+        back = snake[1] + movement
+        if np.all(back == snake[2]):
+            done = True
+        else:
+            done = False
 
-        # save snake length
-        self.snake_len = int(len(self.old_snake) / 2)
-        snake_len = self.snake_len - 1
+        # get movement direction (action size = 3)
+        # movement = [0, 0]
+        # if action == 1:
+        #     movement = direction
+        # else:
+        #     movement[0] = direction[1]
+        #     movement[1] = direction[0]
+        #     if action == 0:
+        #         if direction[0] == 0:
+        #             movement[0] *= -1
+        #             movement[1] *= -1
+        #     if action == 2:
+        #         if direction[1] == 0:
+        #             movement[0] *= -1
+        #             movement[1] *= -1
+        #
+        # movement[0] = int(movement[0])
+        # movement[1] = int(movement[1])
 
-        # move rest of the snake
-        if snake_len > 0:
-            for i in range(snake_len):
-                x = i * 2
-                self.snake[x + 2] = self.old_snake[x + 0]
-                self.snake[x + 3] = self.old_snake[x + 1]
+        # move snake body
+        snake_copy = snake
+        for i in range(len(snake)):
+            if i > 1:
+                x = i - 1
+                snake[i] = snake_copy[x]
+                if np.all(snake[i] == 0):
+                    break
 
         # move head
-        self.head = self.head + movement
-        return
+        snake[1] = snake[1] + movement
+        self.snake[snake_number] = snake
+
+        return done
 
     # check collision
-    def check(self):
-        # point = got the apple / done = dead
+    def check(self, snake_number, done):
         point = False
-        done = False
+        if done:
+            # mark if game is done
+            self.done[snake_number] = done
+            return point
 
-        # check walls
-        if self.head[0] == size[0]-1:
+        # point = got the apple / done = dead
+        snake = self.snake[snake_number]
+        done = self.done[snake_number]
+
+        head = snake[1]
+
+        # Check walls
+        if head[0] == s_size[0]:
             done = True
-        elif self.head[1] == size[1]-1:
+        elif head[1] == s_size[1]:
             done = True
-        elif self.head[0] <= 0:
+        elif head[0] < 0:
             done = True
-        elif self.head[1] <= 0:
+        elif head[1] < 0:
             done = True
         else:
-            # check if snake hit it self
-            for i in range(self.snake_len):
-                x = i * 2
-                if self.head[0] == self.snake[x] and self.head[1] == self.snake[x + 1]:
+            # Check if snake hit itself
+            for i in range(len(snake) - 2):
+                k = i + 2
+                if np.all(snake[k] == 0):
+                    break
+                if np.all(head == snake[k]):
                     done = True
 
+        # mark if game is done
+        self.done[snake_number] = done
+
+        # check apple
         if not done:
-            # check apple
-            if np.all(self.head == self.apple):
+            apple = snake[0]
+            if np.all(head == apple):
                 point = True
-                # add to snake
-                self.snake = np.append(self.snake, self.snake_add)
                 # spawn new apple
-                game.spawn_apple(self)
+                game.spawn_apple(self, snake_number)
 
-        return done, point
+                # save last snake positions
+                for i in range(len(snake)):
+                    if np.all(snake[i] == 0):
+                        break
+                    else:
+                        self.snake_old = snake[i]
 
-    # draw the game
-    def draw(self):
-        # draw everything
-        background = np.zeros((size[0], size[1], 3), dtype=np.uint8)
-        background[self.apple[0], self.apple[1]] = red
-        background[self.head[0], self.head[1]] = green
-        for i in range(self.snake_len):
-            x = i * 2
-            background[self.snake[x], self.snake[x + 1]] = 80
-        return background
+                # add to snake
+                for i in range(len(snake)):
+                    if np.all(snake[i] == 0):
+                        snake[i] = self.snake_old
+                        break
 
+        return point
+
+    # calculate rewards
+    def reward_calculation(self, point, snake_number):
+        done = self.done[snake_number]
+        snake = self.snake[snake_number]
+
+        step_reward = 0
+        if done:
+            step_reward -= s_penalty
+        elif point:
+            step_reward += s_apple_score
+        else:
+            # Calculate distance to the apple
+            apple = snake[0]
+            head = snake[1]
+            last_head = snake[2]
+
+            distance = abs(apple - head)
+            old_distance = abs(apple - last_head)
+            difference = old_distance - distance
+            step_reward += difference[0] * s_distance_score
+            step_reward += difference[1] * s_distance_score
+
+        return step_reward

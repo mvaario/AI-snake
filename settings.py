@@ -1,42 +1,45 @@
 # game settings
-size = [20, 20]
-green = (0, 255, 0)
-red = (0, 0, 255)
-
-display = True
-display_rate = 100
-wait_time = 250
-
-# for check terminal: tensorboard --logdir=logs/
-# training settings
-model_name = 'new_dense_32x2_+7500.model'
-load_model_name = 'models/new_dense_32x2.model_episode_7500_avg_23.8.model'
-load_model = True
-train = True
-save_model = True
-save_rate = 500
-logging = True
+s_size = [20, 20]
+s_green = (0, 255, 0)
+s_red = (0, 0, 255)
 
 
-n_episodes = 20_000
-step_limit = 150
-step_min = 10
+# rates
+s_update_rate = 15
+s_save_rate = 500
+
+# for testing (test also resets)
+s_testing_ai = True
+s_test_rate = 50
+s_test_games = 10
+s_wait_time = 200
+
+# epsilon
+s_start_epsilon = 1
+s_epsilon_min = 0.05
+s_epsilon_decay = 0.9975
+
 # rewards
-penalty = 5
-apple_score = 7
-distance_score = 1
+s_penalty = 8
+s_apple_score = 5
+s_distance_score = 0.5
 
 # DQNAgent settings
-state_size = 24
-start_epsilon = 1
+s_state_size = 128
+s_deque_len = 7500
+s_min_memory = 5000
+s_game_amount = 50
+s_batch_size = 250
 
-deque_len = 5000
-min_memory = 500
-batch_size = 64
-epsilon_min = 0.01
-epsilon_decay = 0.9975
+# training settings
+s_model_name = 'dense_256_128_128'
+s_load_model_name = 'models/dense_32x2.model'
+s_episodes = 100_000
+s_lr_rate = 0.001
+s_discount = 0.95
 
-lr_rate = 0.001
-discount = 0.95
-update_rate = 5
+
+
+
+
 
