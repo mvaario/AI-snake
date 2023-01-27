@@ -1,41 +1,45 @@
 # game settings
-size = [20, 20]
-green = (0, 255, 0)
-red = (0, 0, 255)
+s_size = [20, 20]
+s_green = (0, 255, 0)
+s_red = (0, 0, 255)
 
-display = False
-display_rate = 250
-wait_time = 100
 
-# training settings
-model_name = 'dense_63+32+16'
-load_model_name = 'models/dense_32x2_+28500_avg_40.39.model'
-load_model = False
-train = True
-save_model = False
-save_rate = 500
-logging = False
+# rates
+s_update_rate = 15
+s_save_rate = 500
 
-n_episodes = 10_00_000
-step_limit = 5000
-step_min = 0
+# for testing (test also resets)
+s_testing_ai = True
+s_test_rate = 50
+s_test_games = 10
+s_wait_time = 200
+
+# epsilon
+s_start_epsilon = 1
+s_epsilon_min = 0.05
+s_epsilon_decay = 0.9975
 
 # rewards
-penalty = 6
-apple_score = 8
-distance_score = 1
+s_penalty = 8
+s_apple_score = 5
+s_distance_score = 0.5
 
 # DQNAgent settings
-state_size = [7, 4]
-deque_len = 500000
-min_memory = 500000
-batch_size = 500000
+s_state_size = 128
+s_deque_len = 7500
+s_min_memory = 5000
+s_game_amount = 50
+s_batch_size = 250
 
-start_epsilon = 1
-epsilon_min = 0.01
-epsilon_decay = 0.99995
+# training settings
+s_model_name = 'dense_256_128_128'
+s_load_model_name = 'models/dense_32x2.model'
+s_episodes = 100_000
+s_lr_rate = 0.001
+s_discount = 0.95
 
-lr_rate = 0.001
-discount = 0.85
-update_rate = 10
+
+
+
+
 
