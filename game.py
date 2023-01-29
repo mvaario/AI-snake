@@ -6,14 +6,17 @@ import numpy as np
 
 class game:
     def __init__(self):
-        self.snake = np.zeros([s_game_amount, s_size[0] * s_size[1], 2])
-        self.snake_old = np.zeros([s_game_amount, 1, 2])
+        self.snake = np.ones([s_game_amount, s_size[0] * s_size[1], 2])
+        self.snake = np.negative(self.snake)
         self.done = np.ones([s_game_amount, 1], dtype=bool)
+        self.point = np.zeros([s_game_amount, 1], dtype=bool)
 
     # spawn head and body
     def spawn_snake(self, snake_number):
-        # Clear snake
-        self.snake[snake_number, 0:] = 0
+        # Clear old snake
+        self.snake[snake_number, 0:] = -1
+        self.done[snake_number] = False
+        self.point[snake_number] = False
 
         # spawn snake head
         head = np.random.randint(1, s_size[1] - 1, size=2)
@@ -46,37 +49,32 @@ class game:
 
         # check apple position
         for i in range(len(snake)):
-            if np.all(snake[i] == 0):
+            if np.all(snake[i] == -1):
                 break
             if np.all(apple == snake[i]):
-                # let's change apple position and see if it works
+                # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+                # let's change apple position and see if it works, (got looping without)
                 for i in range(s_size[0]):
                     if apple[1] == s_size[0]:
                         break
                     apple[1] += 1
                     if np.all(apple != snake[i]):
                         break
-
+                # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
                 # Spawn new apple
                 if np.all(apple == snake[i]):
                     game.spawn_apple(self, snake_number)
 
-            if np.all(snake[i] == 0) and np.all(snake[i+1] == 0):
-                break
-
-        # Apple position is in front
+        # set apple position is in front
         self.snake[snake_number, 0] = apple
         return
 
     # movements
     def move_snake(self, action, snake_number):
-        # direction
         # Again no idea why it needs to be copied...
         snake = np.copy(self.snake[snake_number])
-        back = snake[2]
-        direction = snake[1] - back
 
-        # get movement derection (action size = 4)
+        # get movement direction (action size = 4)
         if action == 0:
             movement = [-1, 0]
         elif action == 1:
@@ -89,12 +87,7 @@ class game:
             print("Wrong action")
             quit()
 
-        back = snake[1] + movement
-        if np.all(back == snake[2]):
-            done = True
-        else:
-            done = False
-
+        # # # # # # # # # # # # # # # # # # # # # # # #
         # get movement direction (action size = 3)
         # movement = [0, 0]
         # if action == 1:
@@ -113,19 +106,29 @@ class game:
         #
         # movement[0] = int(movement[0])
         # movement[1] = int(movement[1])
+        # # # # # # # # # # # # # # # # # # # # # # # #
 
-        # move snake body
-        snake_copy = snake
-        for i in range(len(snake)):
-            if np.all(snake[i] == 0):
-                break
-            if i > 1:
-                x = i - 1
-                snake[i] = snake_copy[x]
+        # movement backwards -> dead
+        back = snake[1] + movement
+        if np.all(back == snake[2]):
+            done = True
+        else:
+            done = False
+            # move snake body
+            snake_copy = np.copy(snake)
+            for i in range(len(snake)):
+                if np.all(snake[i] == -1) and i > 0:
+                    if self.point[snake_number]:
+                        snake[i] = last_position
+                    break
+                elif i > 1:
+                    x = i - 1
+                    snake[i] = snake_copy[x]
+                    last_position = snake_copy[i]
 
-        # move head
-        snake[1] = snake[1] + movement
-        self.snake[snake_number] = snake
+            # move head
+            snake[1] = snake[1] + movement
+            self.snake[snake_number] = snake
 
         return done
 
@@ -155,14 +158,11 @@ class game:
         else:
             # Check if snake hit itself
             for i in range(len(snake) - 2):
-                if np.all(snake[i] == 0):
+                if np.all(snake[i] == -1):
                     break
                 k = i + 2
                 if np.all(head == snake[k]):
                     done = True
-
-        # mark if game is done
-        self.done[snake_number] = done
 
         # check apple
         if not done:
@@ -172,13 +172,9 @@ class game:
                 # spawn new apple
                 game.spawn_apple(self, snake_number)
 
-                # add to snake
-                for i in range(len(snake)):
-                    if np.all(snake[i] == 0):
-                        k = i + 1
-                        snake[k] = snake[i]
-                        break
-                self.snake[snake_number] = snake
+        # save results
+        self.point[snake_number] = point
+        self.done[snake_number] = done
 
         return point, done
 

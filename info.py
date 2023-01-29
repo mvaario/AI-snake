@@ -24,7 +24,7 @@ class info:
         background[int(head[0]), int(head[1])] = s_green
 
         for i in range(len(body)):
-            if np.all(body[i] == 0):
+            if np.all(body[i] == -1):
                 break
             else:
                 background[int(body[i, 0]), int(body[i, 1])] = 80

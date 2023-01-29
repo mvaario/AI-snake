@@ -3,7 +3,6 @@ s_size = [20, 20]
 s_green = (0, 255, 0)
 s_red = (0, 0, 255)
 
-
 # rates
 s_update_rate = 15
 s_save_rate = 500
@@ -26,10 +25,10 @@ s_distance_score = 0.5
 
 # DQNAgent settings
 s_state_size = 128
-s_deque_len = 7500
-s_min_memory = 5000
-s_game_amount = 50
-s_batch_size = 250
+s_deque_len = 10000
+s_min_memory = 7500
+s_game_amount = 750
+s_batch_size = 3750
 
 # training settings
 s_model_name = 'dense_256_128_128'

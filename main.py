@@ -47,7 +47,7 @@ class main:
         snake_body = snake[2:]
         for i in range(snake_len):
             # break if all empty
-            if i > 0 and np.all(snake_body[i] == 0):
+            if i > 0 and np.all(snake_body[i] -1):
                 break
             # snake cordination
             k = i * 2
@@ -98,13 +98,14 @@ class main:
         # save state
         state = main.create_state(snake_number)
 
-        # pick action
-        action = DQNA.get_qs(state, r_testing)
-
         # display for testing
         # if snake_number == 0:
-        # background = info.draw(snake_number, game.snake)
-        # info.screen(background)
+        #     background = info.draw(snake_number, game.snake)
+        #     info.screen(background)
+
+        # pick action
+        action = DQNA.get_qs(state, r_testing)
+        # action = int(input(": "))
 
         # move snake
         done = game.move_snake(action, snake_number)
@@ -145,8 +146,10 @@ class main:
         self.step = np.zeros([games, 1])
         self.ep_reward = 0
 
-        game.snake = np.zeros([games, s_size[0] * s_size[1], 2])
-        game.snake_old = np.zeros([games, 1, 2])
+        game.snake = np.ones([games, s_size[0] * s_size[1], 2])
+        game.snake = np.negative(game.snake)
+        game.last_position = np.zeros([s_game_amount, 2])
+        game.point = np.zeros([s_game_amount, 1], dtype=bool)
         game.done = np.ones([games, 1], dtype=bool)
         snake_number = 0
 
@@ -220,7 +223,7 @@ if __name__ == '__main__':
                 if game.done[snake_number]:
                     game.spawn_snake(snake_number)
                     game.spawn_apple(snake_number)
-                    game.done[snake_number] = False
+
 
                 # game thread
                 # main.game_states(snake_number, r_testing)
@@ -238,7 +241,7 @@ if __name__ == '__main__':
         # episode end stuff
         info.scores.append(main.ep_reward)
         main.ep_reward = 0
-        if len(DQNA.replay_memory) > s_min_memory:
+        if len(DQNA.replay_memory) >= s_min_memory:
             if s_testing_ai:
                 if e % s_test_rate == 0 or e == 1:
                     game_thread.join()
