@@ -1,3 +1,5 @@
+import threading
+
 from game import *
 from DQNAgent import *
 from info import *
@@ -8,6 +10,8 @@ import time
 
 class main:
     def __init__(self):
+        # define state
+        self.ori_state = np.zeros(s_state_size)
         # rewards and step
         self.step = np.zeros([s_game_amount, 1])
         self.ep_reward = 0
@@ -17,20 +21,16 @@ class main:
         # No idea why this need to be copied, but if not game.snake will change
         snake = np.copy(game.snake[snake_number])
 
-        # size
-        size_y = s_size[0]
-        size_x = s_size[1]
-
         # apple position
         apple = snake[0]
-        y = apple[0] / size_y
-        x = apple[1] / size_x
+        y = apple[0] / s_size[0]
+        x = apple[1] / s_size[1]
         apple = [y, x]
 
         # head position
         head = snake[1]
-        y = head[0] / size_y
-        x = head[1] / size_x
+        y = head[0] / s_size[0]
+        x = head[1] / s_size[1]
         head = [y, x]
 
         # get closest snake
@@ -45,6 +45,9 @@ class main:
         snake_coordination = []
         snake_body = snake[2:]
         for i in range(snake_len):
+            # break if all empty
+            if i > 0 and np.all(snake_body[i] == 0):
+                break
             # snake cordination
             k = i * 2
             coordination = snake_body[i]
@@ -53,8 +56,8 @@ class main:
             distance_1 = abs(snake[1] - coordination)
             distance = int(np.sum(distance_1))
 
-            coordination[0] = coordination[0] / size_y
-            coordination[1] = coordination[1] / size_x
+            coordination[0] = coordination[0] / s_size[0]
+            coordination[1] = coordination[1] / s_size[1]
 
             # save distances and coordination
             if k < max_len:
@@ -75,10 +78,14 @@ class main:
         snake_coordination = np.array(snake_coordination)
         snake_coordination = np.reshape(snake_coordination, (-1))
 
-        state = np.concatenate((apple, head, snake_coordination))
-
-        while len(state) < s_state_size:
-            state = np.append(state, 0)
+        state = self.ori_state
+        state[0] = apple[0]
+        state[1] = apple[1]
+        state[2] = head[0]
+        state[3] = head[1]
+        for i in range(len(snake_coordination)-1):
+            k = i + 4
+            state[k] = snake_coordination[i]
 
         return state
 
@@ -126,7 +133,7 @@ class main:
             main.step[snake_number] = 0
         else:
             main.step[snake_number] += 1
-            if main.step[snake_number] > 500 and not r_testing:
+            if main.step[snake_number] > 500:
                 game.done[snake_number] = True
                 main.step[snake_number] = 0
 
@@ -168,6 +175,8 @@ class main:
                     if not game.done[snake_number]:
                         background = info.draw(snake_number, game.snake)
                         info.screen(background)
+                    else:
+                        cv2.destroyAllWindows()
 
                 if not game.done[snake_number]:
                     steps += 1
@@ -197,7 +206,6 @@ if __name__ == '__main__':
     else:
         print("Tensorflow using CPU")
     print("")
-
 
     # define how many episodes
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit='episodes'):

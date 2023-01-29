@@ -46,6 +46,8 @@ class game:
 
         # check apple position
         for i in range(len(snake)):
+            if np.all(snake[i] == 0):
+                break
             if np.all(apple == snake[i]):
                 # let's change apple position and see if it works
                 for i in range(s_size[0]):
@@ -87,7 +89,6 @@ class game:
             print("Wrong action")
             quit()
 
-
         back = snake[1] + movement
         if np.all(back == snake[2]):
             done = True
@@ -116,11 +117,11 @@ class game:
         # move snake body
         snake_copy = snake
         for i in range(len(snake)):
+            if np.all(snake[i] == 0):
+                break
             if i > 1:
                 x = i - 1
                 snake[i] = snake_copy[x]
-                if np.all(snake[i] == 0):
-                    break
 
         # move head
         snake[1] = snake[1] + movement
@@ -154,9 +155,9 @@ class game:
         else:
             # Check if snake hit itself
             for i in range(len(snake) - 2):
-                k = i + 2
-                if np.all(snake[k] == 0):
+                if np.all(snake[i] == 0):
                     break
+                k = i + 2
                 if np.all(head == snake[k]):
                     done = True
 
@@ -171,18 +172,13 @@ class game:
                 # spawn new apple
                 game.spawn_apple(self, snake_number)
 
-                # save last snake positions
-                for i in range(len(snake)):
-                    if np.all(snake[i] == 0):
-                        break
-                    else:
-                        self.snake_old = snake[i]
-
                 # add to snake
                 for i in range(len(snake)):
                     if np.all(snake[i] == 0):
-                        snake[i] = self.snake_old
+                        k = i + 1
+                        snake[k] = snake[i]
                         break
+                self.snake[snake_number] = snake
 
         return point
 
