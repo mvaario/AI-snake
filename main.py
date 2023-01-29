@@ -148,8 +148,8 @@ class main:
 
         game.snake = np.ones([games, s_size[0] * s_size[1], 2])
         game.snake = np.negative(game.snake)
-        game.last_position = np.zeros([s_game_amount, 2])
-        game.point = np.zeros([s_game_amount, 1], dtype=bool)
+        game.last_position = np.zeros([games, 2])
+        game.point = np.zeros([games, 1], dtype=bool)
         game.done = np.ones([games, 1], dtype=bool)
         snake_number = 0
 
@@ -165,11 +165,10 @@ class main:
         for snake_number in range(s_test_games):
             game.spawn_snake(snake_number)
             game.spawn_apple(snake_number)
-            game.done[snake_number] = False
 
         # play all the games one time
         while not np.all(game.done):
-            # all games one step
+            # one step every game
             for snake_number in range(s_test_games):
                 main.game_states(snake_number, r_testing)
 
@@ -186,9 +185,8 @@ class main:
 
         # all games done
         cv2.destroyAllWindows()
-        info.scores.append(main.ep_reward)
-        info.print_graf(steps, DQNA.epsilon)
-        # reset saves to train mode
+        info.print_graf(main.ep_reward, steps, DQNA.epsilon)
+        # reset values to train mode
         snake_number = main.reset(s_game_amount)
 
         return snake_number
@@ -239,7 +237,6 @@ if __name__ == '__main__':
             games_done += np.count_nonzero(game.done)
 
         # episode end stuff
-        info.scores.append(main.ep_reward)
         main.ep_reward = 0
         if len(DQNA.replay_memory) >= s_min_memory:
             if s_testing_ai:

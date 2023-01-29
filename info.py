@@ -6,10 +6,9 @@ import matplotlib.pyplot as plt
 
 class info:
     def __init__(self):
-        self.scores = []
-        self.avg = []
+        self.avg_scores = []
         self.episodes = []
-        self.step = []
+        self.avg_step = []
 
     # draw the game
     def draw(self, snake_number, snake):
@@ -41,16 +40,14 @@ class info:
         return
 
     # make an info graf
-    def print_graf(self, steps, epsilon):
+    def print_graf(self, ep_reward, steps, epsilon):
         # calculate test games average
-        avg = np.average(self.scores)
-        avg = avg / s_test_games
-        self.avg.append(avg)
-        self.scores = []
+        avg = ep_reward / s_test_games
+        self.avg_scores.append(avg)
 
-        self.episodes.append(len(self.avg))
+        self.episodes.append(len(self.avg_scores))
         step = steps / s_test_games
-        self.step.append(step)
+        self.avg_step.append(step)
 
         # plt prints
         epsilon = round(epsilon, 3)
@@ -61,8 +58,8 @@ class info:
         plt.grid(True)
 
         # plot scores
-        plt.plot(self.episodes, self.avg, label='Scores')
-        plt.plot(self.episodes, self.step, label='Steps')
+        plt.plot(self.episodes, self.avg_scores, label='Scores')
+        plt.plot(self.episodes, self.avg_step, label='Steps')
 
         # show
         plt.legend()
