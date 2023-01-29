@@ -1,3 +1,4 @@
+import multiprocessing
 import threading
 
 from game import *
@@ -78,7 +79,7 @@ class main:
         snake_coordination = np.array(snake_coordination)
         snake_coordination = np.reshape(snake_coordination, (-1))
 
-        state = self.ori_state
+        state = np.copy(self.ori_state)
         state[0] = apple[0]
         state[1] = apple[1]
         state[2] = head[0]
@@ -109,7 +110,7 @@ class main:
         done = game.move_snake(action, snake_number)
 
         # check snake
-        point = game.check(snake_number, done)
+        point, done = game.check(snake_number, done)
 
         # reward calculations
         step_reward = game.reward_calculation(point, snake_number)
@@ -117,13 +118,12 @@ class main:
         if not r_testing:
             # create new state
             next_state = main.create_state(snake_number)
-
             # update memory
             DQNA.update_replay_memory(state,
                                       action,
                                       step_reward,
                                       next_state,
-                                      game.done[snake_number, 0]
+                                      done
                                       )
 
         main.ep_reward += step_reward
@@ -190,6 +190,7 @@ class main:
 
         return snake_number
 
+
 if __name__ == '__main__':
     # initialize
     main = main()
@@ -221,15 +222,16 @@ if __name__ == '__main__':
                     game.spawn_apple(snake_number)
                     game.done[snake_number] = False
 
-                # make a thread for game
+                # game thread
                 # main.game_states(snake_number, r_testing)
                 game_thread = threading.Thread(target=main.game_states, args=(snake_number, r_testing,))
                 game_thread.start()
 
-            # make training thread
+            # train thread after all the games have taken a step
             # DQNA.train_model()
             train_thread = threading.Thread(target=DQNA.train_model)
             train_thread.start()
+
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
 
@@ -252,7 +254,6 @@ if __name__ == '__main__':
             # update target model
             if e % s_update_rate == 0:
                 DQNA.target_model.set_weights(DQNA.model.get_weights())
-
 
             # save model
             if e % s_save_rate == 0:

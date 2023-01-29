@@ -135,7 +135,7 @@ class game:
         if done:
             # mark if game is done
             self.done[snake_number] = done
-            return point
+            return point, done
 
         # point = got the apple / done = dead
         snake = self.snake[snake_number]
@@ -180,7 +180,7 @@ class game:
                         break
                 self.snake[snake_number] = snake
 
-        return point
+        return point, done
 
     # calculate rewards
     def reward_calculation(self, point, snake_number):

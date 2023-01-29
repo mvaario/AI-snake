@@ -55,7 +55,7 @@ class DQNAgent:
         if len(DQNA.replay_memory) < s_min_memory:
             return
 
-        # random patch
+        # random batch
         minibatch = random.sample(DQNA.replay_memory, s_batch_size)
 
         # choice current states
