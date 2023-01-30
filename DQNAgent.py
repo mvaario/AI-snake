@@ -14,7 +14,6 @@ class DQNAgent:
         DQNA.action_size = 4
         DQNA.epsilon = s_start_epsilon
 
-
         # Main model
         DQNA.model = DQNA.create_model()
 
@@ -26,9 +25,6 @@ class DQNAgent:
 
     # dense model
     def create_model(DQNA):
-        # if load_model:
-        #     model = keras.models.load_model(load_model_name)
-        # else:
         model = keras.Sequential([
             keras.layers.Flatten(input_shape=DQNA.state_size),
 
@@ -100,6 +96,7 @@ class DQNAgent:
 
         return
 
+    # pick action
     def get_qs(DQNA, state, r_testing):
         if r_testing or np.random.rand() > DQNA.epsilon:
             # predict action
@@ -111,3 +108,16 @@ class DQNAgent:
             action = np.random.randint(DQNA.action_size)
 
         return action
+
+    # lower randomness
+    def epsilon_decay(DQNA):
+        if DQNA.epsilon > s_epsilon_min:
+            DQNA.epsilon *= s_epsilon_decay
+            DQNA.epsilon = max(s_epsilon_min, DQNA.epsilon)
+        return
+
+    # update target model
+    def target_update(DQNA, e):
+        if e % s_update_rate == 0:
+            DQNA.target_model.set_weights(DQNA.model.get_weights())
+        return

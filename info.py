@@ -1,3 +1,5 @@
+import time
+
 from settings import *
 import numpy as np
 import cv2
@@ -5,10 +7,29 @@ import matplotlib.pyplot as plt
 
 
 class info:
-    def __init__(self):
+    def __init__(self, tf):
         self.avg_scores = []
         self.episodes = []
         self.avg_step = []
+
+        self.tensorflow_setups(tf)
+
+    def tensorflow_setups(self, tf):
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 1
+        config.gpu_options.allow_growth = True
+        session = tf.compat.v1.Session(config=config)
+
+        # check if tensorflow uses GPU or CPU
+        print("")
+        if len(tf.config.list_physical_devices('GPU')) == 1:
+            print("Tensorflow using GPU")
+        else:
+            print("Tensorflow using CPU")
+        print("")
+        time.sleep(1)
+
+        return
 
     # draw the game
     def draw(self, snake_number, snake):

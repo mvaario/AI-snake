@@ -1,13 +1,10 @@
-import multiprocessing
-import threading
-
 from game import *
 from DQNAgent import *
 from info import *
 import numpy as np
 from tqdm import tqdm
 import time
-
+import tensorflow as tf
 
 class main:
     def __init__(self):
@@ -196,18 +193,9 @@ if __name__ == '__main__':
     # initialize
     main = main()
     game = game()
-    info = info()
-
     input_shape = np.zeros(s_state_size)
     DQNA = DQNAgent(input_shape)
-
-    # check if tensorflow uses GPU or CPU
-    print("")
-    if len(tf.config.list_physical_devices('GPU')) == 1:
-        print("Tensorflow using GPU")
-    else:
-        print("Tensorflow using CPU")
-    print("")
+    info = info(tf)
 
     # define how many episodes
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit='episodes'):
@@ -222,42 +210,42 @@ if __name__ == '__main__':
                     game.spawn_snake(snake_number)
                     game.spawn_apple(snake_number)
 
-
                 # game thread
                 # main.game_states(snake_number, r_testing)
                 game_thread = threading.Thread(target=main.game_states, args=(snake_number, r_testing,))
                 game_thread.start()
 
-            # train thread after all the games have taken a step
-            # DQNA.train_model()
-            train_thread = threading.Thread(target=DQNA.train_model)
-            train_thread.start()
-
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
+
+            if threading.activeCount() < 10:
+                # train thread after all the games have taken a step
+                # DQNA.train_model()
+                train_thread = threading.Thread(target=DQNA.train_model)
+                train_thread.start()
 
         # episode end stuff
         main.ep_reward = 0
         if len(DQNA.replay_memory) >= s_min_memory:
-            if s_testing_ai:
-                if e % s_test_rate == 0 or e == 1:
-                    game_thread.join()
-                    train_thread.join()
-                    time.sleep(0.1)
-                    main.testing_ai()
+            # model modifications
+            DQNA.epsilon_decay()
+            DQNA.target_update(e)
 
-            # epsilon decay
-            if DQNA.epsilon > s_epsilon_min:
-                DQNA.epsilon *= s_epsilon_decay
-                DQNA.epsilon = max(s_epsilon_min, DQNA.epsilon)
-
-            # update target model
-            if e % s_update_rate == 0:
-                DQNA.target_model.set_weights(DQNA.model.get_weights())
-
-            # save model
             if e % s_save_rate == 0:
+                # save model
+                game_thread.join()
+                train_thread.join()
+                time.sleep(0.1)
                 DQNA.model.save(f'models/{s_model_name}_episode_{e:}.model')
-                print("")
-                print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
+                # print("")
+                # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
+
+            # test the model
+            if s_testing_ai and e % s_test_rate == 0:
+                game_thread.join()
+                train_thread.join()
+                time.sleep(0.1)
+                main.testing_ai()
+
+
 
