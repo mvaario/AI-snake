@@ -1,3 +1,5 @@
+import threading
+
 from game import *
 from DQNAgent import *
 from info import *
@@ -218,7 +220,7 @@ if __name__ == '__main__':
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
 
-            if threading.activeCount() < 10:
+            if threading.activeCount() < 15:
                 # train thread after all the games have taken a step
                 # DQNA.train_model()
                 train_thread = threading.Thread(target=DQNA.train_model)
