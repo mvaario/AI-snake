@@ -46,10 +46,10 @@ class main:
         snake_body = snake[2:]
         for i in range(snake_len):
             # break if all empty
-            if i > 0 and np.all(snake_body[i] -1):
+            if i > 0 and np.all(snake_body[i] - 1):
                 break
-            # snake cordination
-            k = i * 2
+
+            # snake coordination
             coordination = snake_body[i]
 
             # coordination distance from snake head
@@ -60,6 +60,7 @@ class main:
             coordination[1] = coordination[1] / s_size[1]
 
             # save distances and coordination
+            k = i * 2
             if k < max_len:
                 lengths.append(distance)
                 snake_coordination.append(coordination)
@@ -83,7 +84,7 @@ class main:
         state[1] = apple[1]
         state[2] = head[0]
         state[3] = head[1]
-        for i in range(len(snake_coordination)-1):
+        for i in range(len(snake_coordination)):
             k = i + 4
             state[k] = snake_coordination[i]
 
@@ -112,6 +113,10 @@ class main:
         # check snake
         point, done = game.check(snake_number, done)
 
+        # add snake even without the apple
+        if np.random.rand() > 0.5 and not done and not r_testing:
+            game.point[snake_number] = True
+
         # reward calculations
         step_reward = game.reward_calculation(point, snake_number)
 
@@ -133,7 +138,7 @@ class main:
             main.step[snake_number] = 0
         else:
             main.step[snake_number] += 1
-            if main.step[snake_number] > 500:
+            if main.step[snake_number] > 300:
                 game.done[snake_number] = True
                 main.step[snake_number] = 0
 
@@ -220,7 +225,7 @@ if __name__ == '__main__':
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
 
-            if threading.activeCount() < 15:
+            if threading.activeCount() < 10:
                 # train thread after all the games have taken a step
                 # DQNA.train_model()
                 train_thread = threading.Thread(target=DQNA.train_model)
@@ -238,7 +243,7 @@ if __name__ == '__main__':
                 game_thread.join()
                 train_thread.join()
                 time.sleep(0.1)
-                DQNA.model.save(f'models/{s_model_name}_episode_{e:}.model')
+                DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
                 # print("")
                 # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
 

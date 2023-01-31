@@ -25,22 +25,27 @@ class DQNAgent:
 
     # dense model
     def create_model(DQNA):
-        model = keras.Sequential([
-            keras.layers.Flatten(input_shape=DQNA.state_size),
+        if s_load_model:
+            model = keras.models.load_model(f'models/{s_load_model_name}')
+            print(f'Model {s_load_model_name} loaded')
+        else:
+            model = keras.Sequential([
+                keras.layers.Flatten(input_shape=DQNA.state_size),
 
-            keras.layers.Dense(256, activation=tf.nn.relu),
+                keras.layers.Dense(256, activation=tf.nn.relu),
 
-            keras.layers.Dense(128, activation=tf.nn.relu),
+                keras.layers.Dense(128, activation=tf.nn.relu),
 
-            keras.layers.Dense(64, activation=tf.nn.relu),
+                keras.layers.Dense(64, activation=tf.nn.relu),
 
-            keras.layers.Dense(DQNA.action_size, activation='linear')
-        ])
+                keras.layers.Dense(DQNA.action_size, activation='linear')
+            ])
 
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
-                      loss='mse',
-                      metrics=['accuracy']
-                      )
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
+                          loss='mse',
+                          metrics=['accuracy']
+                          )
+            print('Model created')
         return model
 
     def update_replay_memory(DQNA, state, action, step_reward, next_state, done):

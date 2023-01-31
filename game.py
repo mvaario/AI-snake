@@ -198,5 +198,8 @@ class game:
             difference = old_distance - distance
             step_reward += difference[0] * s_distance_score
             step_reward += difference[1] * s_distance_score
+            # to avoid wander with zero loss
+            if step_reward < 0:
+                step_reward *= 2.2
 
         return step_reward

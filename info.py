@@ -27,8 +27,11 @@ class info:
         else:
             print("Tensorflow using CPU")
         print("")
-        time.sleep(1)
 
+        # Random setup prints
+        print(f'Model saverate: {s_save_rate} with name: {s_save_model_name}')
+        print("")
+        time.sleep(1)
         return
 
     # draw the game
@@ -56,6 +59,7 @@ class info:
         game = np.uint8(game)
         cv2.imshow("game", game)
         cv2.moveWindow("game", -520, 40)
+        # cv2.moveWindow("game", 520, 40)
         cv2.waitKey(s_wait_time)
 
         return
