@@ -170,6 +170,10 @@ class game:
                 point = True
                 # spawn new apple
                 game.spawn_apple(self, snake_number)
+            else:
+                # add snake even without the apple (doesn't affect rewards)
+                if np.random.rand() > s_random_point:
+                    self.point[snake_number] = True
 
         # save results
         self.point[snake_number] = point

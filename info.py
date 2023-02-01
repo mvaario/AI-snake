@@ -30,6 +30,8 @@ class info:
 
         # Random setup prints
         print(f'Model saverate: {s_save_rate} with name: {s_save_model_name}')
+        if s_testing_ai:
+            print(f'Test rate: {s_test_rate}')
         print("")
         time.sleep(1)
         return

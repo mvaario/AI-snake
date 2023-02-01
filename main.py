@@ -33,10 +33,6 @@ class main:
         x = head[1] / s_size[1]
         head = [y, x]
 
-        # get closest snake
-        snake_len = len(snake) - 2
-        snake_len = int(snake_len)
-
         # max snake len, delete head and apple positions
         max_len = s_state_size
         max_len -= 4
@@ -44,9 +40,9 @@ class main:
         lengths = []
         snake_coordination = []
         snake_body = snake[2:]
-        for i in range(snake_len):
+        for i in range(len(snake_body)):
             # break if all empty
-            if i > 0 and np.all(snake_body[i] - 1):
+            if i > 0 and np.all(snake_body[i] == - 1):
                 break
 
             # snake coordination
@@ -113,9 +109,6 @@ class main:
         # check snake
         point, done = game.check(snake_number, done)
 
-        # add snake even without the apple
-        if np.random.rand() > 0.5 and not done and not r_testing:
-            game.point[snake_number] = True
 
         # reward calculations
         step_reward = game.reward_calculation(point, snake_number)
@@ -224,7 +217,6 @@ if __name__ == '__main__':
 
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
-
             if threading.activeCount() < 10:
                 # train thread after all the games have taken a step
                 # DQNA.train_model()
@@ -253,6 +245,3 @@ if __name__ == '__main__':
                 train_thread.join()
                 time.sleep(0.1)
                 main.testing_ai()
-
-
-
