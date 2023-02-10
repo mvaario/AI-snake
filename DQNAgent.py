@@ -14,7 +14,6 @@ class DQNAgent:
         DQNA.action_size = 4
         DQNA.epsilon = s_start_epsilon
 
-
         # Main model
         DQNA.model = DQNA.create_model()
 
@@ -26,25 +25,27 @@ class DQNAgent:
 
     # dense model
     def create_model(DQNA):
-        # if load_model:
-        #     model = keras.models.load_model(load_model_name)
-        # else:
-        model = keras.Sequential([
-            keras.layers.Flatten(input_shape=DQNA.state_size),
+        if s_load_model:
+            model = keras.models.load_model(f'models/{s_load_model_name}')
+            print(f'Model {s_load_model_name} loaded')
+        else:
+            model = keras.Sequential([
+                keras.layers.Flatten(input_shape=DQNA.state_size),
 
-            keras.layers.Dense(256, activation=tf.nn.relu),
+                keras.layers.Dense(256, activation=tf.nn.relu),
 
-            keras.layers.Dense(128, activation=tf.nn.relu),
+                keras.layers.Dense(128, activation=tf.nn.relu),
 
-            keras.layers.Dense(64, activation=tf.nn.relu),
+                keras.layers.Dense(64, activation=tf.nn.relu),
 
-            keras.layers.Dense(DQNA.action_size, activation='linear')
-        ])
+                keras.layers.Dense(DQNA.action_size, activation='linear')
+            ])
 
-        model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
-                      loss='mse',
-                      metrics=['accuracy']
-                      )
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
+                          loss='mse',
+                          metrics=['accuracy']
+                          )
+            print('Model created')
         return model
 
     def update_replay_memory(DQNA, state, action, step_reward, next_state, done):
@@ -55,7 +56,7 @@ class DQNAgent:
         if len(DQNA.replay_memory) < s_min_memory:
             return
 
-        # random patch
+        # random batch
         minibatch = random.sample(DQNA.replay_memory, s_batch_size)
 
         # choice current states
@@ -100,6 +101,7 @@ class DQNAgent:
 
         return
 
+    # pick action
     def get_qs(DQNA, state, r_testing):
         if r_testing or np.random.rand() > DQNA.epsilon:
             # predict action
@@ -111,3 +113,16 @@ class DQNAgent:
             action = np.random.randint(DQNA.action_size)
 
         return action
+
+    # lower randomness
+    def epsilon_decay(DQNA):
+        if DQNA.epsilon > s_epsilon_min:
+            DQNA.epsilon *= s_epsilon_decay
+            DQNA.epsilon = max(s_epsilon_min, DQNA.epsilon)
+        return
+
+    # update target model
+    def target_update(DQNA, e):
+        if e % s_update_rate == 0:
+            DQNA.target_model.set_weights(DQNA.model.get_weights())
+        return
