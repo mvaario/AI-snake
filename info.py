@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 class info:
     def __init__(self, tf):
         self.avg_scores = []
-        self.episodes = []
         self.avg_step = []
-
+        self.test_count = []
         self.tensorflow_setups(tf)
 
     def tensorflow_setups(self, tf):
@@ -71,32 +70,33 @@ class info:
         game = np.uint8(game)
         cv2.imshow("game", game)
         cv2.moveWindow("game", -520, 40)
-        # cv2.moveWindow("game", 520, 40)
         cv2.waitKey(s_wait_time)
 
         return
 
     # make an info graf
-    def print_graf(self, avg, step, epsilon, step_limit):
+    def print_graf(self, avg, step, epsilon, step_limit, e):
         # save points
         self.avg_scores.append(avg)
-        self.episodes.append(len(self.avg_scores)-1)
         self.avg_step.append(step)
+        self.test_count.append(len(self.avg_scores)-1)
 
-        x = 0.8 * step_limit
+        # increase difficulty when
+        score_limit = round(step_limit * 0.5)
+        step_limit = round(step_limit * 0.8)
 
         # plt prints
         epsilon = round(epsilon, 3)
         plt.title(f'Epsilon {epsilon}', loc='right')
-        plt.title(f'Step limit {step_limit} - {round(x, 2)}', loc='left')
-        plt.xlabel(f'Episodes {len(self.episodes)}')
+        plt.title(f'Increase difficulty {step_limit} - {score_limit}', loc='left')
+        plt.xlabel(f'Episodes {e}')
         plt.ylabel("Scores / Steps")
 
         plt.grid(True)
 
         # plot scores
-        plt.plot(self.episodes, self.avg_scores, label=f'Scores {round(avg,2)}')
-        plt.plot(self.episodes, self.avg_step, label=f'Steps {round(step,2)}')
+        plt.plot(self.test_count, self.avg_scores, label=f'Scores {round(avg,2)}')
+        plt.plot(self.test_count, self.avg_step, label=f'Steps {round(step,2)}')
 
         # show
         plt.legend()

@@ -94,14 +94,10 @@ class main:
 
         # save state
         state = main.create_state(snake_number)
-        # display for testing
-        if snake_number == 0 and r_testing:
-            background = info.draw(snake_number, game.snake)
-            info.screen(background)
-            time.sleep(0.1)
 
         # pick action
         action = DQNA.get_qs(state, r_testing)
+        # action = np.random.randint(1,3)
 
         # move snake
         done = game.move_snake(action, snake_number)
@@ -112,9 +108,13 @@ class main:
         # reward calculations
         step_reward = game.reward_calculation(point, snake_number)
 
+        # add step wards to episode reward
+        self.ep_reward += step_reward
+
         if not r_testing:
             # create new state
             next_state = main.create_state(snake_number)
+
             # update memory
             DQNA.update_replay_memory(state,
                                       action,
@@ -123,17 +123,14 @@ class main:
                                       done
                                       )
 
-        # add step wards to episode reward
-        main.ep_reward += step_reward
-
-        # reset steps and step limit
-        if game.done[snake_number]:
-            main.step[snake_number] = 0
-        else:
-            main.step[snake_number] += 1
-            if main.step[snake_number] >= main.step_limit:
-                game.done[snake_number] = True
-                main.step[snake_number] = 0
+            # reset steps and step limit
+            if game.done[snake_number]:
+                self.step[snake_number] = 0
+            else:
+                main.step[snake_number] += 1
+                if main.step[snake_number] >= main.step_limit:
+                    game.done[snake_number] = True
+                    self.step[snake_number] = 0
 
         return
 
@@ -148,17 +145,16 @@ class main:
         game.last_position = np.zeros([games, 2])
         game.point = np.zeros([games, 1], dtype=bool)
         game.done = np.ones([games, 1], dtype=bool)
-        snake_number = 0
 
-        return snake_number
+        return
 
     # testing the AI with new games
-    def testing_ai(self):
+    def testing_ai(self, e):
         r_testing = True
         steps = s_test_games
 
         # reset saves to testing mode
-        snake_number = main.reset(s_test_games)
+        main.reset(s_test_games)
         for snake_number in range(s_test_games):
             game.spawn_snake(snake_number)
             game.spawn_apple(snake_number)
@@ -185,19 +181,20 @@ class main:
         avg, step = main.increase_difficulty(steps)
 
         # show graf
-        info.print_graf(avg, step, DQNA.epsilon, main.step_limit)
+        info.print_graf(avg, step, DQNA.epsilon, main.step_limit, e)
         # reset values to train mode
-        snake_number = main.reset(s_game_amount)
+        main.reset(s_game_amount)
 
-        return snake_number
+        return
 
     def increase_difficulty(self, steps):
         avg = main.ep_reward / s_test_games
         step = steps / s_test_games
 
         limit = main.step_limit * 0.8
+        score_limit = main.step_limit * 0.5
         # if steps and scores are good enough increase difficulty
-        if avg >= limit and step >= limit:
+        if step >= limit and avg >= score_limit:
             main.step_limit += 5
 
             # increase random point
@@ -227,7 +224,6 @@ if __name__ == '__main__':
     DQNA = DQNAgent(input_shape)
 
     # define how many episodes
-    start = time.time()
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit='episodes'):
         r_testing = False
         games_done = 0
@@ -244,33 +240,26 @@ if __name__ == '__main__':
 
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
-            # if s_threading:
-            #     while threading.active_count() > s_max_threads + 1:
-            #         time.sleep(0.0001)
-            #     # train thread after all the games have taken a step
-            #     train_thread = threading.Thread(target=DQNA.train_model)
-            #     train_thread.start()
-            # else:
-            #     DQNA.train_model()
 
-
-
+            # Train model
+            DQNA.train_model()
 
 
         # episode end stuff
-        # main.ep_reward = 0
-        # if len(DQNA.replay_memory) >= s_min_memory:
-        #     # model modifications
-        #     DQNA.epsilon_decay()
-        #     DQNA.target_update(e)
-        #     if s_save_model and e % s_save_rate == 0:
-        #         # save model
-        #         time.sleep(0.1)
-        #         DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
-        #         # print("")
-        #         # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
-        #
+        main.ep_reward = 0
+
+        # model modifications
+        DQNA.epsilon_decay()
+        DQNA.target_update(e)
+        if s_save_model and e % s_save_rate == 0:
+            # save model
+            time.sleep(0.1)
+            DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
+            # print("")
+            # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
+
         # # test the model
-        # if s_testing_ai and e % s_test_rate == 0 or e <= 1:
-        #     time.sleep(0.1)
-        #     main.testing_ai()
+        if s_testing_ai:
+            if e % s_test_rate == 0 or e <= 1:
+                time.sleep(0.1)
+                main.testing_ai(e)
