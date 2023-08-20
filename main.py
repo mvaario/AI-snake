@@ -1,5 +1,4 @@
 import threading
-
 from game import *
 from DQNAgent import *
 from info import *
@@ -9,7 +8,6 @@ import time
 import tensorflow as tf
 
 
-
 class main:
     def __init__(self):
         # define state
@@ -17,6 +15,7 @@ class main:
         # rewards and step
         self.step = np.zeros([s_game_amount, 1])
         self.ep_reward = 0
+        self.step_limit = s_step_limit
 
     # Create state for neuron network
     def create_state(self, snake_number):
@@ -95,22 +94,20 @@ class main:
 
         # save state
         state = main.create_state(snake_number)
-
         # display for testing
-        # if snake_number == 0:
-        #     background = info.draw(snake_number, game.snake)
-        #     info.screen(background)
+        if snake_number == 0 and r_testing:
+            background = info.draw(snake_number, game.snake)
+            info.screen(background)
+            time.sleep(0.1)
 
         # pick action
         action = DQNA.get_qs(state, r_testing)
-        # action = int(input(": "))
 
         # move snake
         done = game.move_snake(action, snake_number)
 
         # check snake
         point, done = game.check(snake_number, done)
-
 
         # reward calculations
         step_reward = game.reward_calculation(point, snake_number)
@@ -126,6 +123,7 @@ class main:
                                       done
                                       )
 
+        # add step wards to episode reward
         main.ep_reward += step_reward
 
         # reset steps and step limit
@@ -133,7 +131,7 @@ class main:
             main.step[snake_number] = 0
         else:
             main.step[snake_number] += 1
-            if main.step[snake_number] > 300:
+            if main.step[snake_number] >= main.step_limit:
                 game.done[snake_number] = True
                 main.step[snake_number] = 0
 
@@ -178,28 +176,58 @@ class main:
                         info.screen(background)
                     else:
                         cv2.destroyAllWindows()
-
                 if not game.done[snake_number]:
                     steps += 1
 
         # all games done
         cv2.destroyAllWindows()
-        info.print_graf(main.ep_reward, steps, DQNA.epsilon)
+        # increase difficulty
+        avg, step = main.increase_difficulty(steps)
+
+        # show graf
+        info.print_graf(avg, step, DQNA.epsilon, main.step_limit)
         # reset values to train mode
         snake_number = main.reset(s_game_amount)
 
         return snake_number
 
+    def increase_difficulty(self, steps):
+        avg = main.ep_reward / s_test_games
+        step = steps / s_test_games
+
+        limit = main.step_limit * 0.8
+        # if steps and scores are good enough increase difficulty
+        if avg >= limit and step >= limit:
+            main.step_limit += 5
+
+            # increase random point
+            game.random_poit += 0.05
+            if game.random_poit >= 0.75:
+                game.random_poit = 0.75
+
+            # decay distance score
+            game.distance_score -= 0.05
+            if game.distance_score <= 0:
+                game.distance_score = 0
+
+            # increase exploration
+            DQNA.epsilon += 0.25
+            if DQNA.epsilon > 1:
+                DQNA.epsilon = 1
+
+        return avg, step
+
 
 if __name__ == '__main__':
     # initialize
+    info = info(tf)
     main = main()
     game = game()
     input_shape = np.zeros(s_state_size)
     DQNA = DQNAgent(input_shape)
-    info = info(tf)
 
     # define how many episodes
+    start = time.time()
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit='episodes'):
         r_testing = False
         games_done = 0
@@ -212,38 +240,37 @@ if __name__ == '__main__':
                     game.spawn_snake(snake_number)
                     game.spawn_apple(snake_number)
 
-                # game thread
-                # main.game_states(snake_number, r_testing)
-                game_thread = threading.Thread(target=main.game_states, args=(snake_number, r_testing,))
-                game_thread.start()
+                main.game_states(snake_number, r_testing)
 
             # count when all the games have ended
             games_done += np.count_nonzero(game.done)
-            if threading.active_count() < 10:
-                # train thread after all the games have taken a step
-                # DQNA.train_model()
-                train_thread = threading.Thread(target=DQNA.train_model)
-                train_thread.start()
+            # if s_threading:
+            #     while threading.active_count() > s_max_threads + 1:
+            #         time.sleep(0.0001)
+            #     # train thread after all the games have taken a step
+            #     train_thread = threading.Thread(target=DQNA.train_model)
+            #     train_thread.start()
+            # else:
+            #     DQNA.train_model()
+
+
+
+
 
         # episode end stuff
-        main.ep_reward = 0
-        if len(DQNA.replay_memory) >= s_min_memory:
-            # model modifications
-            DQNA.epsilon_decay()
-            DQNA.target_update(e)
-
-            if e % s_save_rate == 0:
-                # save model
-                game_thread.join()
-                train_thread.join()
-                time.sleep(0.1)
-                DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
-                # print("")
-                # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
-
-            # test the model
-            if s_testing_ai and e % s_test_rate == 0:
-                game_thread.join()
-                train_thread.join()
-                time.sleep(0.1)
-                main.testing_ai()
+        # main.ep_reward = 0
+        # if len(DQNA.replay_memory) >= s_min_memory:
+        #     # model modifications
+        #     DQNA.epsilon_decay()
+        #     DQNA.target_update(e)
+        #     if s_save_model and e % s_save_rate == 0:
+        #         # save model
+        #         time.sleep(0.1)
+        #         DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
+        #         # print("")
+        #         # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
+        #
+        # # test the model
+        # if s_testing_ai and e % s_test_rate == 0 or e <= 1:
+        #     time.sleep(0.1)
+        #     main.testing_ai()

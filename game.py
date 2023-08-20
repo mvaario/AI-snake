@@ -10,6 +10,9 @@ class game:
         self.done = np.ones([s_game_amount, 1], dtype=bool)
         self.point = np.zeros([s_game_amount, 1], dtype=bool)
 
+        self.distance_score = s_distance_score
+        self.random_poit = s_random_point
+
     # spawn head and body
     def spawn_snake(self, snake_number):
         # Clear old snake
@@ -54,7 +57,7 @@ class game:
                 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
                 # let's change apple position and see if it works, (got looping without)
                 for i in range(s_size[0]):
-                    if apple[1] == s_size[0]:
+                    if apple[1] == s_size[0]-1:
                         break
                     apple[1] += 1
                     if np.all(apple != snake[i]):
@@ -170,14 +173,14 @@ class game:
                 point = True
                 # spawn new apple
                 game.spawn_apple(self, snake_number)
-            else:
-                # add snake even without the apple (doesn't affect rewards)
-                if np.random.rand() > s_random_point:
-                    self.point[snake_number] = True
 
         # save results
         self.point[snake_number] = point
         self.done[snake_number] = done
+        # add snake even without the apple (doesn't affect rewards)
+        if not done:
+            if np.random.rand() < self.random_poit:
+                self.point[snake_number] = True
 
         return point, done
 
@@ -196,12 +199,13 @@ class game:
             apple = snake[0]
             head = snake[1]
             last_head = snake[2]
+            score = self.distance_score
 
             distance = abs(apple - head)
             old_distance = abs(apple - last_head)
             difference = old_distance - distance
-            step_reward += difference[0] * s_distance_score
-            step_reward += difference[1] * s_distance_score
+            step_reward += difference[0] * score
+            step_reward += difference[1] * score
             # to avoid wander with zero loss
             if step_reward < 0:
                 step_reward *= 2.2
