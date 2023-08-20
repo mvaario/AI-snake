@@ -1,11 +1,10 @@
-import threading
 from game import *
 from DQNAgent import *
 from info import *
 import numpy as np
 from tqdm import tqdm
-import time
 import tensorflow as tf
+import time
 
 
 class main:
@@ -123,14 +122,14 @@ class main:
                                       done
                                       )
 
-            # reset steps and step limit
-            if game.done[snake_number]:
+        # reset steps and step limit
+        if game.done[snake_number]:
+            self.step[snake_number] = 0
+        else:
+            main.step[snake_number] += 1
+            if main.step[snake_number] >= main.step_limit:
+                game.done[snake_number] = True
                 self.step[snake_number] = 0
-            else:
-                main.step[snake_number] += 1
-                if main.step[snake_number] >= main.step_limit:
-                    game.done[snake_number] = True
-                    self.step[snake_number] = 0
 
         return
 
@@ -208,7 +207,7 @@ class main:
                 game.distance_score = 0
 
             # increase exploration
-            DQNA.epsilon += 0.25
+            DQNA.epsilon += 0.20
             if DQNA.epsilon > 1:
                 DQNA.epsilon = 1
 
@@ -223,6 +222,7 @@ if __name__ == '__main__':
     input_shape = np.zeros(s_state_size)
     DQNA = DQNAgent(input_shape)
 
+    start = time.time()
     # define how many episodes
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit='episodes'):
         r_testing = False
@@ -244,7 +244,6 @@ if __name__ == '__main__':
             # Train model
             DQNA.train_model()
 
-
         # episode end stuff
         main.ep_reward = 0
 
@@ -254,9 +253,7 @@ if __name__ == '__main__':
         if s_save_model and e % s_save_rate == 0:
             # save model
             time.sleep(0.1)
-            DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
-            # print("")
-            # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
+            DQNA.model.save(f'D:\Programs\Coding\Projects\AI_snake\models\{s_save_model_name}_episode_{e:}.model')
 
         # # test the model
         if s_testing_ai:

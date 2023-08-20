@@ -1,12 +1,7 @@
-import time
-
 from settings import *
-import tensorflow as tf
 from tensorflow import keras
-from collections import deque
 import numpy as np
-import random
-import threading
+
 
 class DQNAgent:
     def __init__(DQNA, input_shape):

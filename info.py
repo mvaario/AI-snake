@@ -1,5 +1,7 @@
 import time
 
+import keras.backend
+
 from settings import *
 import numpy as np
 import cv2
@@ -14,11 +16,6 @@ class info:
         self.tensorflow_setups(tf)
 
     def tensorflow_setups(self, tf):
-        # gpus = tf.config.list_physical_devices('GPU')
-        # tf.config.set_logical_device_configuration(
-        #     gpus[0],
-        #     [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
-
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 1
         config.gpu_options.allow_growth = True

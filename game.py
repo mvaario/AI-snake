@@ -1,4 +1,3 @@
-import time
 from settings import *
 import numpy as np
 

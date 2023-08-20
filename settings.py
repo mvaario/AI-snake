@@ -7,12 +7,12 @@ s_red = (0, 0, 255)
 s_testing_ai = True
 s_test_rate = 100
 s_test_games = 100
-s_wait_time = 25
+s_wait_time = 20
 
 # epsilon
 s_start_epsilon = 1
 s_epsilon_min = 0.1
-s_epsilon_decay = 0.9975
+s_epsilon_decay = 0.99975
 s_step_limit = 10
 
 # rewards
@@ -34,7 +34,7 @@ s_save_model = True
 s_save_rate = 1000
 s_save_model_name = 'Functional_model'
 
-s_episodes = 10_000
+s_episodes = 100_000
 s_lr_rate = 0.001
 s_discount = 0.95
 
