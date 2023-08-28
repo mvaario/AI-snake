@@ -30,8 +30,10 @@ class info:
             print("Tensorflow using CPU")
 
         # Random setup prints
+        print(f'Game amount: {s_game_amount}')
+
         if s_save_model:
-            print(f'Model saverate: {s_save_rate} with name: {s_save_model_name}')
+            print(f'Model save rate: {s_save_rate} with name: {s_save_model_name}')
         else:
             print("Saving is OFF")
         if s_testing_ai:
@@ -39,26 +41,25 @@ class info:
         else:
             print("Testing is OFF")
         print("")
-        time.sleep(1)
         return
 
     # draw the game
     def draw(self, snake_number, snake):
-        snake = snake[snake_number]
+        snake = np.copy(snake[snake_number])
         apple = snake[0]
         head = snake[1]
         body = snake[2:]
 
         # draw everything
         background = np.zeros((s_size[0], s_size[1], 3), dtype=np.uint8)
-        background[int(apple[0]), int(apple[1])] = s_red
-        background[int(head[0]), int(head[1])] = s_green
+        background[int(apple[0]-1), int(apple[1]-1)] = s_red
+        background[int(head[0]-1), int(head[1]-1)] = s_green
 
         for i in range(len(body)):
-            if np.all(body[i] == -1):
+            if np.any(body[i] == 0):
                 break
-            else:
-                background[int(body[i, 0]), int(body[i, 1])] = 80
+            background[int(body[i, 0]-1), int(body[i, 1]-1)] = 80
+
         return background
 
     def screen(self, background):
@@ -76,7 +77,7 @@ class info:
         # save points
         self.avg_scores.append(avg)
         self.avg_step.append(step)
-        self.test_count.append(len(self.avg_scores)-1)
+        self.test_count.append(e)
 
         # increase difficulty when
         score_limit = round(step_limit * 0.5)
@@ -85,8 +86,8 @@ class info:
         # plt prints
         epsilon = round(epsilon, 3)
         plt.title(f'Epsilon {epsilon}', loc='right')
-        plt.title(f'Increase difficulty {step_limit} - {score_limit}', loc='left')
-        plt.xlabel(f'Episodes {e}')
+        plt.title(f'Min steps: {step_limit} Min scores: {score_limit}', loc='left')
+        plt.xlabel(f'Games played {e*s_game_amount}')
         plt.ylabel("Scores / Steps")
 
         plt.grid(True)
