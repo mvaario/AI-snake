@@ -1,6 +1,6 @@
 from settings import *
 import numpy as np
-import time
+
 
 class game:
     def __init__(self):
@@ -10,12 +10,12 @@ class game:
 
         self.last_position = np.zeros([s_game_amount, 2])
         self.distance_score = s_distance_score
-        self.random_poit = s_random_point
+        self.random_poit = s_start_random_point
 
         # all available spots
         self.all_spots = []
-        for i in range(0, s_size[0]*s_size[1]):
-            self.all_spots.append(i+1)
+        for i in range(0, s_size[0] * s_size[1]):
+            self.all_spots.append(i + 1)
 
     # spawn head and body
     def spawn_snake(self, snake_number):
@@ -25,7 +25,7 @@ class game:
         self.point[snake_number] = False
 
         # spawn snake head
-        head = np.random.randint(1, [s_size[0]+1, s_size[1]+1], size=2)
+        head = np.random.randint(1, [s_size[0] + 1, s_size[1] + 1], size=2)
 
         snake_body = np.array([-1, -1])
         while np.any(snake_body <= 0) or snake_body[0] > s_size[0] or snake_body[1] > s_size[1]:
@@ -98,7 +98,7 @@ class game:
         snake = np.copy(self.snake[snake_number, 1:])
         snake_copy = np.copy(snake)
 
-        # get movement direction
+        # move snake head
         if action == 0:
             snake[0, 0] += 1
         elif action == 1:
@@ -118,14 +118,13 @@ class game:
         else:
             done = False
             # move snake body
-            for i in range(len(snake)-1):
-                if np.any(snake[i+1] == 0):
-                    # save last position for adding snake
+            for i in range(len(snake) - 1):
+                # save last position for adding snake
+                if np.any(snake[i + 1] == 0):
                     self.last_position[snake_number] = snake_copy[i]
                     break
-                snake[i+1] = snake_copy[i]
+                snake[i + 1] = snake_copy[i]
 
-        # move head
         self.snake[snake_number, 1:] = snake
         return done
 
@@ -139,6 +138,7 @@ class game:
 
         # point = got the apple / done = dead
         snake = self.snake[snake_number]
+        snake = snake[:s_max_len + 2]
         done = self.done[snake_number]
 
         head = snake[1]
@@ -149,9 +149,11 @@ class game:
             done = True
         else:
             # Check if snake hit itself
-            for i in range(len(snake)-2):
-                if np.all(snake[1] == snake[i+2]):
+            for i in range(len(snake) - 2):
+                if np.all(head == snake[i + 2]):
                     done = True
+                if np.all(snake[i] == 0):
+                    break
 
         # check apple
         if not done:
@@ -159,13 +161,20 @@ class game:
             if np.all(head == apple):
                 point = True
                 # add snake
-                if len(snake) < s_max_len:
-                    for i in range(len(snake)):
-                        if snake[i] == 0:
-                            snake[i] = self.last_position[snake_number]
-                            break
+                for i in range(s_max_len + 2):
+                    if np.all(snake[i] == 0):
+                        snake[i] = self.last_position[snake_number]
+                        break
                 # spawn new apple
                 game.spawn_apple(self, snake_number)
+
+
+            elif np.random.rand() <= self.random_poit:
+                # add snake
+                for i in range(s_max_len + 2):
+                    if np.all(snake[i] == 0):
+                        snake[i] = self.last_position[snake_number]
+                        break
 
         # save results
         self.point[snake_number] = point
@@ -201,12 +210,6 @@ class game:
             difference = old_distance - distance
             step_reward += difference[0] * score
             step_reward += difference[1] * score
-            if step_reward < 0:
-                step_reward *= 2
             step_reward = int(step_reward)
-            # add snake even without the apple (doesn't affect rewards)
-            # if not done:
-                # if np.random.rand() < self.random_poit:
-                #     self.point[snake_number] = True
 
         return step_reward
