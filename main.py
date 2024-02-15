@@ -1,12 +1,10 @@
-import threading
-
 from game import *
 from DQNAgent import *
 from info import *
 import numpy as np
 from tqdm import tqdm
-import time
 import tensorflow as tf
+import time
 
 class main:
     def __init__(self):
@@ -14,94 +12,57 @@ class main:
         self.ori_state = np.zeros(s_state_size)
         # rewards and step
         self.step = np.zeros([s_game_amount, 1])
-        self.ep_reward = 0
+        self.game_reward = 0
+        self.step_limit = s_start_step_limit
 
-    # Create state for neuron network
-    def create_state(self, snake_number):
-        # No idea why this need to be copied, but if not game.snake will change
-        snake = np.copy(game.snake[snake_number])
+    # Create state
+    def create_state(self, snake, done):
+        if done:
+            state = np.zeros(s_state_size)
+            return state
 
-        # apple position
-        apple = snake[0]
-        y = apple[0] / s_size[0]
-        x = apple[1] / s_size[1]
-        apple = [y, x]
-
-        # head position
-        head = snake[1]
-        y = head[0] / s_size[0]
-        x = head[1] / s_size[1]
-        head = [y, x]
-
-        # max snake len, delete head and apple positions
-        max_len = s_state_size
-        max_len -= 4
-
+        state = []
         lengths = []
-        snake_coordination = []
-        snake_body = snake[2:]
-        for i in range(len(snake_body)):
-            # break if all empty
-            if i > 0 and np.all(snake_body[i] == - 1):
-                break
+        head_coordinates = np.sum(snake[0])
+        for i in range(len(snake)):
+            if len(state) < s_state_size:
+                state.append(snake[i, 0])
+                state.append(snake[i, 1])
 
-            # snake coordination
-            coordination = snake_body[i]
-
-            # coordination distance from snake head
-            distance_1 = abs(snake[1] - coordination)
-            distance = int(np.sum(distance_1))
-
-            coordination[0] = coordination[0] / s_size[0]
-            coordination[1] = coordination[1] / s_size[1]
-
-            # save distances and coordination
-            k = i * 2
-            if k < max_len:
-                lengths.append(distance)
-                snake_coordination.append(coordination)
-
-            # if snake is too long, save the closest
+                # get distance from head
+                body_coordinates = np.sum(snake[i])
+                lengths.append(abs(body_coordinates - head_coordinates))
             else:
+                # if state is full and get 0
+                if np.all(snake[i] == 0):
+                    break
+                # check if closer than max
                 max = np.max(lengths)
-                if distance < max:
-                    for l in range(len(lengths)):
-                        if lengths[l] == max:
-                            lengths[l] = distance
-                            snake_coordination[l][0] = coordination[0]
-                            snake_coordination[l][1] = coordination[1]
+                body_coordinates = np.sum(snake[i])
+                current_len = abs(body_coordinates - head_coordinates)
+                # change max
+                if max > current_len:
+                    for k in range(len(lengths)):
+                        if lengths[k] == max:
+                            lengths[k] = current_len
+                            k = k * 2
+                            state[k] = snake[i, 0]
+                            state[k+1] = snake[i, 1]
                             break
 
-        snake_coordination = np.array(snake_coordination)
-        snake_coordination = np.reshape(snake_coordination, (-1))
-
-        state = np.copy(self.ori_state)
-        state[0] = apple[0]
-        state[1] = apple[1]
-        state[2] = head[0]
-        state[3] = head[1]
-        for i in range(len(snake_coordination)):
-            k = i + 4
-            state[k] = snake_coordination[i]
+        state = np.array(state)
+        state = state / s_size[1]
 
         return state
 
     # game states
     def game_states(self, snake_number, r_testing):
-        if game.done[snake_number]:
-            return
-
-        # save state
-        state = main.create_state(snake_number)
-
-        # display for testing
-        # if snake_number == 0:
-        #     background = info.draw(snake_number, game.snake)
-        #     info.screen(background)
+        done = False
+        # create state
+        state = main.create_state(game.snake[snake_number], done)
 
         # pick action
         action = DQNA.get_qs(state, r_testing)
-        # action = int(input(": "))
 
         # move snake
         done = game.move_snake(action, snake_number)
@@ -109,13 +70,16 @@ class main:
         # check snake
         point, done = game.check(snake_number, done)
 
-
         # reward calculations
         step_reward = game.reward_calculation(point, snake_number)
 
-        if not r_testing:
+        if r_testing:
+            # game reward for testing
+            self.game_reward += step_reward
+        else:
             # create new state
-            next_state = main.create_state(snake_number)
+            next_state = main.create_state(game.snake[snake_number], done)
+
             # update memory
             DQNA.update_replay_memory(state,
                                       action,
@@ -124,41 +88,37 @@ class main:
                                       done
                                       )
 
-        main.ep_reward += step_reward
-
         # reset steps and step limit
         if game.done[snake_number]:
-            main.step[snake_number] = 0
+            self.step[snake_number] = 0
         else:
-            main.step[snake_number] += 1
-            if main.step[snake_number] > 300:
+            self.step[snake_number] += 1
+            if self.step[snake_number] >= self.step_limit:
                 game.done[snake_number] = True
-                main.step[snake_number] = 0
+                self.step[snake_number] = 0
 
         return
 
     # reset all for testing
-    def reset(self, games):
+    def reset(self):
         # testing uses different number of games
-        self.step = np.zeros([games, 1])
-        self.ep_reward = 0
+        self.step = np.zeros([s_game_amount, 1])
+        self.game_reward = 0
 
-        game.snake = np.ones([games, s_size[0] * s_size[1], 2])
-        game.snake = np.negative(game.snake)
-        game.last_position = np.zeros([games, 2])
-        game.point = np.zeros([games, 1], dtype=bool)
-        game.done = np.ones([games, 1], dtype=bool)
-        snake_number = 0
+        game.snake = np.zeros([s_game_amount, s_size[0] * s_size[1], 2])
+        game.done = np.ones(s_game_amount, dtype=bool)
+        game.point = np.zeros(s_game_amount, dtype=bool)
 
-        return snake_number
+        game.last_position = np.zeros([s_game_amount, 2])
+        return
 
     # testing the AI with new games
-    def testing_ai(self):
+    def testing_ai(self, e):
+        time.sleep(0.01)
         r_testing = True
-        steps = s_test_games
+        steps = 0
 
-        # reset saves to testing mode
-        snake_number = main.reset(s_test_games)
+        # create games
         for snake_number in range(s_test_games):
             game.spawn_snake(snake_number)
             game.spawn_apple(snake_number)
@@ -167,81 +127,97 @@ class main:
         while not np.all(game.done):
             # one step every game
             for snake_number in range(s_test_games):
-                main.game_states(snake_number, r_testing)
-
-                # show game
-                if snake_number == 0:
-                    if not game.done[snake_number]:
+                if not game.done[snake_number]:
+                    # show game
+                    if snake_number == 0:
                         background = info.draw(snake_number, game.snake)
                         info.screen(background)
-                    else:
-                        cv2.destroyAllWindows()
+                        cv2.waitKey(s_wait_time)
 
-                if not game.done[snake_number]:
+                    main.game_states(snake_number, r_testing)
                     steps += 1
 
         # all games done
         cv2.destroyAllWindows()
-        info.print_graf(main.ep_reward, steps, DQNA.epsilon)
-        # reset values to train mode
-        snake_number = main.reset(s_game_amount)
 
-        return snake_number
+        # increase difficulty
+        avg, step = main.increase_difficulty(steps)
+
+        # save test results for graf
+        info.avg_scores.append(avg)
+        info.avg_step.append(step)
+        info.test_count.append(e)
+        info.last_step = step
+        info.last_score = avg
+
+        return
+
+    # increase difficulty based on test results
+    def increase_difficulty(self, steps):
+        avg = main.game_reward / s_test_games
+        step = steps / s_test_games
+
+        # info limits for next level
+        info.step_limit = main.step_limit * s_score_limit_multiplier
+        info.score_limit = main.step_limit * s_distance_score * s_score_limit_multiplier
+
+        # if steps and scores are good enough increase difficulty
+        if step >= info.step_limit and avg >= info.step_limit:
+            main.step_limit += s_step_increase
+
+            # increase random point
+            game.random_poit += s_random_point_increase
+            if game.random_poit >= 1:
+                game.random_poit = 1
+
+            # increase exploration
+            DQNA.epsilon += s_epsilon_increase
+            if DQNA.epsilon > 1:
+                DQNA.epsilon = 1
+
+        return avg, step
 
 
 if __name__ == '__main__':
     # initialize
-    main = main()
-    game = game()
     input_shape = np.zeros(s_state_size)
     DQNA = DQNAgent(input_shape)
     info = info(tf)
+    main = main()
+    game = game()
 
-    # define how many episodes
-    for e in tqdm(range(1, s_episodes + 1), ascii=True, unit='episodes'):
+    # define how many episodes (not games, all games with one step)
+    for e in tqdm(range(1, s_episodes + 1), ascii=True, unit=' episodes'):
         r_testing = False
-        games_done = 0
-        # while all the games haven't ended
-        while games_done < s_game_amount:
-            # make multiple games at once
-            for snake_number in range(s_game_amount):
-                # create new game
-                if game.done[snake_number]:
-                    game.spawn_snake(snake_number)
-                    game.spawn_apple(snake_number)
+        # make multiple games at once
+        for snake_number in range(s_game_amount):
+            # create new game
+            if game.done[snake_number]:
+                game.spawn_snake(snake_number)
+                game.spawn_apple(snake_number)
 
-                # game thread
-                # main.game_states(snake_number, r_testing)
-                game_thread = threading.Thread(target=main.game_states, args=(snake_number, r_testing,))
-                game_thread.start()
+            # all game states
+            main.game_states(snake_number, r_testing)
 
-            # count when all the games have ended
-            games_done += np.count_nonzero(game.done)
-            if threading.activeCount() < 10:
-                # train thread after all the games have taken a step
-                # DQNA.train_model()
-                train_thread = threading.Thread(target=DQNA.train_model)
-                train_thread.start()
+        # Train model
+        DQNA.train_model(e)
 
-        # episode end stuff
-        main.ep_reward = 0
-        if len(DQNA.replay_memory) >= s_min_memory:
-            # model modifications
-            DQNA.epsilon_decay()
-            DQNA.target_update(e)
+        # test the model
+        if s_test_model:
+            if len(DQNA.replay_memory) == s_deque_memory or e == 1:
+                if e % s_test_rate == 0 or e == 1:
+                    # reset values for testing
+                    main.reset()
 
-            if e % s_save_rate == 0:
-                # save model
-                game_thread.join()
-                train_thread.join()
-                time.sleep(0.1)
-                DQNA.model.save(f'models/{s_save_model_name}_episode_{e:}.model')
-                # print("")
-                # print("Model saved", f'models/{s_model_name}_episode_{e:}.model')
+                    # test AI
+                    main.testing_ai(e)
 
-            # test the model
-            if s_testing_ai and e % s_test_rate == 0:
-                game_thread.join()
-                train_thread.join()
-                time.sleep(0.1)
-                main.testing_ai()
+                    # reset values for training
+                    main.reset()
+
+                    # draw graf
+                    info.print_graf(DQNA.epsilon, e, game.random_poit)
+
+                # update graf values
+                elif e % 100 == 0:
+                    info.print_graf(DQNA.epsilon, e, game.random_poit)

@@ -1,12 +1,11 @@
-import time
-
 from settings import *
-import tensorflow as tf
 from tensorflow import keras
 from collections import deque
 import numpy as np
 import random
-import threading
+from tensorflow.python.keras.callbacks import TensorBoard
+import time
+
 
 class DQNAgent:
     def __init__(DQNA, input_shape):
@@ -21,55 +20,212 @@ class DQNAgent:
         DQNA.target_model = DQNA.create_model()
         DQNA.target_model.set_weights(DQNA.model.get_weights())
 
-        DQNA.replay_memory = deque(maxlen=s_deque_len)
+        # DQNA.replay_memory = []
+        DQNA.replay_memory = deque(maxlen=s_deque_memory)
 
     # dense model
+    def create_functional_model(DQNA):
+        # apple = apple and head
+        head_apple = 4
+        snake_body = s_state_size - head_apple
+
+        # apple input
+        input_head_apple = keras.Input(head_apple, name='head_apple')
+        head_apple = keras.layers.Flatten(name='Head_apple_flatten')(input_head_apple)
+        head_apple = keras.layers.Dense(32, activation='relu')(head_apple)
+        # head_apple = keras.layers.Dropout(0.2, name='head_apple_dropout')(head_apple)
+
+        # snake body input
+        if snake_body > 0:
+            input_snake_body = keras.Input(snake_body, name='snake_body')
+            snake_body = keras.layers.Flatten(name='Snake_body_flatten')(input_snake_body)
+            snake_body = keras.layers.Dense(64, activation='relu')(snake_body)
+            # snake_body = keras.layers.Dropout(0.2, name='snake_body_dropout')(snake_body)
+
+            snake = keras.layers.Concatenate(name='Snake')([head_apple, snake_body])
+            snake = keras.layers.Dense(128, activation='relu')(snake)
+            # snake = keras.layers.Dropout(0.2, name='snake_dropout')(snake)
+            # snake = keras.layers.Dense(8, activation='relu')(snake)
+
+            output = keras.layers.Dense(DQNA.action_size, activation='linear')(snake)
+            model = keras.Model(inputs=[input_head_apple, input_snake_body], outputs=output)
+        else:
+            output = keras.layers.Dense(DQNA.action_size, activation='linear')(head_apple)
+            model = keras.Model(inputs=input_head_apple, outputs=output)
+
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
+                      loss='mse',
+                      metrics=['accuracy']
+                      )
+        return model
+
+    def create_sequential_model(DQNA):
+        # apple = apple and head
+        model = keras.Sequential([
+            keras.layers.Flatten(input_shape=DQNA.state_size),
+
+            keras.layers.Dense(128, activation='relu'),
+
+            keras.layers.Dense(128, activation='relu'),
+
+            keras.layers.Dense(64, activation='relu'),
+
+            keras.layers.Dense(DQNA.action_size, activation='linear')
+        ])
+
+        model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
+                      loss='mse',
+                      metrics=['accuracy']
+                      )
+        return model
+
     def create_model(DQNA):
         if s_load_model:
-            model = keras.models.load_model(f'models/{s_load_model_name}')
+            model = keras.models.load_model(f'D:\Programs\Coding\Projects\AI_snake\models\{s_load_model_name}')
+            print("")
             print(f'Model {s_load_model_name} loaded')
         else:
-            model = keras.Sequential([
-                keras.layers.Flatten(input_shape=DQNA.state_size),
+            if s_functional_model:
+                model = DQNA.create_functional_model()
+                print('Functional model created')
+            else:
+                model = DQNA.create_sequential_model()
+                print('Sequential model created')
 
-                keras.layers.Dense(256, activation=tf.nn.relu),
+            # show model
+            print(model.summary())
 
-                keras.layers.Dense(128, activation=tf.nn.relu),
-
-                keras.layers.Dense(64, activation=tf.nn.relu),
-
-                keras.layers.Dense(DQNA.action_size, activation='linear')
-            ])
-
-            model.compile(optimizer=keras.optimizers.Adam(learning_rate=s_lr_rate),
-                          loss='mse',
-                          metrics=['accuracy']
-                          )
-            print('Model created')
         return model
 
     def update_replay_memory(DQNA, state, action, step_reward, next_state, done):
         DQNA.replay_memory.append((state, action, step_reward, next_state, done))
         return
 
-    def train_model(DQNA):
-        if len(DQNA.replay_memory) < s_min_memory:
+    def train_model(DQNA, e):
+        if len(DQNA.replay_memory) < s_deque_memory:
             return
 
+        if s_functional_model:
+            DQNA.train_functional_model()
+        else:
+            DQNA.train_sequential_model()
+
+        # model modifications
+        DQNA.epsilon_decay()
+        DQNA.target_update(e)
+        DQNA.save_model(e)
+
+        return
+
+    def train_sequential_model(DQNA):
         # random batch
         minibatch = random.sample(DQNA.replay_memory, s_batch_size)
 
         # choice current states
         current_states = np.array([transition[0] for transition in minibatch])
 
-        # get the q values
-        current_qs_list = DQNA.model(current_states, training=False)
-
-        # choice the new states
+        # choice the new states (change type to array -> much faster)
         new_current_states = np.array([transition[3] for transition in minibatch])
 
         # get the q values
+        current_qs_list = DQNA.model(current_states, training=False)
+        current_qs_list = np.array(current_qs_list)
+
+        # get the q values (change type to array -> much faster)
         future_qs_list = DQNA.target_model(new_current_states, training=False)
+        future_qs_list = np.array(future_qs_list)
+
+        y = []
+        for index, (current_state, action, step_reward, new_current_state, done) in enumerate(minibatch):
+            if not done:
+                # calculate max reward
+                max_future_q = np.max(future_qs_list[index])
+                new_q = step_reward + s_discount * max_future_q
+            #     new reward or add the old reward????
+            else:
+                new_q = step_reward
+
+            # get the q values
+            current_qs = current_qs_list[index]
+
+            # change the action q value to the reward
+            current_qs[action] = new_q
+
+            y.append(current_qs)
+
+            # check data for no reason at all
+            if np.all(current_state == new_current_state):
+                print("Same states", current_state)
+                quit()
+            if np.all(current_states[index] == new_current_states[index]):
+                print("Same states 2", current_state)
+                quit()
+            if np.all(current_state[2:] == 0):
+                print(current_state)
+                quit()
+            if np.all(new_current_state[2:] == 0) and not done:
+                print("new current state error")
+                quit()
+
+
+        # fit model to the rewards
+        DQNA.model.fit(
+            current_states,
+            np.array(y),
+            batch_size=s_batch_size,
+            verbose=0,
+            shuffle=True,
+            # callbacks=[tensorboard],
+            epochs=s_epochs
+        )
+        return
+
+    def train_functional_model(DQNA):
+        # random batch
+        minibatch = random.sample(DQNA.replay_memory, s_batch_size)
+
+        # choice current states
+        current_states = np.array([transition[0] for transition in minibatch])
+        # choice the new states
+        new_current_states = np.array([transition[3] for transition in minibatch])
+
+        head_apple = []
+        snake_body = []
+        f_head_apple = []
+        f_snake_body = []
+        for i in range(len(current_states)):
+            head_apple = np.append(head_apple, current_states[i, 0:4])
+            f_head_apple = np.append(f_head_apple, new_current_states[i, 0:4])
+            # head_apple.append(current_states[i, 0:4])
+            # f_head_apple.append(new_current_states[i, 0:4])
+
+            head_apple = np.reshape(head_apple, (-1, 4))
+            f_head_apple = np.reshape(f_head_apple, (-1, 4))
+
+            if s_state_size > 4:
+                # snake_body.append(current_states[i, 4:])
+                # f_snake_body.append(new_current_states[i, 4:])
+                snake_body = np.append(snake_body, current_states[i, 4:])
+                f_snake_body = np.append(f_snake_body, new_current_states[i, 4:])
+
+                snake_body = np.reshape(snake_body, (-1, s_state_size - 4))
+                f_snake_body = np.reshape(f_snake_body, (-1, s_state_size - 4))
+
+                # get the q values
+                current_qs_list = DQNA.model((head_apple, snake_body), training=False)
+                current_qs_list = np.array(current_qs_list)
+
+                # get the q values
+                future_qs_list = DQNA.target_model((f_head_apple, f_snake_body), training=False)
+                future_qs_list = np.array(future_qs_list)
+            else:
+                # get the q values
+                current_qs_list = DQNA.model(head_apple, training=False)
+                current_qs_list = np.array(current_qs_list)
+
+                # get the q values
+                future_qs_list = DQNA.target_model(f_head_apple, training=False)
+                future_qs_list = np.array(future_qs_list)
 
         y = []
         for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
@@ -81,22 +237,36 @@ class DQNAgent:
                 new_q = reward
 
             # get the q values
-            current_qs = np.array(current_qs_list[index])
+            current_qs = current_qs_list[index]
 
             # change the action q value to the reward
             current_qs[action] = new_q
 
             y.append(current_qs)
 
+            # check data for no reason at all
+            if np.all(current_state == new_current_state):
+                print("Same states", current_state)
+                quit()
+            if np.all(current_states[index] == new_current_states[index]):
+                print("Same states 2", current_state)
+                quit()
+            if np.all(current_state[2:] == 0):
+                print(current_state)
+                quit()
+            if np.all(new_current_state[2:] == 0) and not done:
+                print("new current state error")
+                quit()
+
         # fit model to the rewards
         DQNA.model.fit(
-            current_states,
+            (head_apple, snake_body),
             np.array(y),
             batch_size=s_batch_size,
             verbose=0,
-            shuffle=False,
+            shuffle=True,
             # callbacks=[tensorboard],
-            epochs=3
+            epochs=s_epochs
         )
 
         return
@@ -104,9 +274,21 @@ class DQNAgent:
     # pick action
     def get_qs(DQNA, state, r_testing):
         if r_testing or np.random.rand() > DQNA.epsilon:
-            # predict action
-            state = np.reshape(state, (1, s_state_size))
-            act_values = DQNA.model(state, training=False)
+            state = np.reshape(state, (-1, s_state_size))
+            if s_functional_model:
+                state = state[0]
+                # current state
+                head_apple = state[0:4]
+                snake_body = state[4:]
+
+                head_apple = np.reshape(head_apple, (-1, 4))
+                if len(snake_body) != 0:
+                    snake_body = np.reshape(snake_body, (-1, s_state_size - 4))
+                    act_values = DQNA.model([head_apple, snake_body], training=False)
+                else:
+                    act_values = DQNA.model(head_apple, training=False)
+            else:
+                act_values = DQNA.model(state, training=False)
             action = np.argmax(act_values)
         else:
             # random action
@@ -125,4 +307,11 @@ class DQNAgent:
     def target_update(DQNA, e):
         if e % s_update_rate == 0:
             DQNA.target_model.set_weights(DQNA.model.get_weights())
+        return
+
+    # save model
+    def save_model(DQNA, e):
+        if s_save_model and e % s_save_rate == 0:
+            DQNA.model.save(f'D:\Programs\Coding\Projects\AI_snake\models\{s_save_model_name}_episodes_{e}.model')
+            time.sleep(0.1)
         return
