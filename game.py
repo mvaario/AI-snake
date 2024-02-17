@@ -168,9 +168,8 @@ class game:
                 # spawn new apple
                 game.spawn_apple(self, snake_number)
 
-
-            elif np.random.rand() <= self.random_poit:
-                # add snake
+            # put this somewhere else you stupid little boy
+            elif np.random.rand() <= self.random_poit or np.count_nonzero(snake) < s_point_until:
                 for i in range(s_max_len + 2):
                     if np.all(snake[i] == 0):
                         snake[i] = self.last_position[snake_number]

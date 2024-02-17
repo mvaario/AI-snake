@@ -6,6 +6,7 @@ from tqdm import tqdm
 import tensorflow as tf
 import time
 
+
 class main:
     def __init__(self):
         # define state
@@ -47,7 +48,7 @@ class main:
                             lengths[k] = current_len
                             k = k * 2
                             state[k] = snake[i, 0]
-                            state[k+1] = snake[i, 1]
+                            state[k + 1] = snake[i, 1]
                             break
 
         state = np.array(state)
@@ -114,7 +115,6 @@ class main:
 
     # testing the AI with new games
     def testing_ai(self, e):
-        time.sleep(0.01)
         r_testing = True
         steps = 0
 
@@ -132,7 +132,6 @@ class main:
                     if snake_number == 0:
                         background = info.draw(snake_number, game.snake)
                         info.screen(background)
-                        cv2.waitKey(s_wait_time)
 
                     main.game_states(snake_number, r_testing)
                     steps += 1
@@ -141,29 +140,26 @@ class main:
         cv2.destroyAllWindows()
 
         # increase difficulty
-        avg, step = main.increase_difficulty(steps)
-
-        # save test results for graf
-        info.avg_scores.append(avg)
-        info.avg_step.append(step)
-        info.test_count.append(e)
-        info.last_step = step
-        info.last_score = avg
+        main.increase_difficulty(steps, e)
 
         return
 
     # increase difficulty based on test results
-    def increase_difficulty(self, steps):
+    def increase_difficulty(self, steps, e):
         avg = main.game_reward / s_test_games
         step = steps / s_test_games
 
-        # info limits for next level
-        info.step_limit = main.step_limit * s_score_limit_multiplier
-        info.score_limit = main.step_limit * s_distance_score * s_score_limit_multiplier
+        # check limits
+        step_limit = main.step_limit * s_step_limit_multiplier
+        score_limit = main.step_limit * s_distance_score * s_score_limit_multiplier
 
         # if steps and scores are good enough increase difficulty
-        if step >= info.step_limit and avg >= info.step_limit:
+        if step >= step_limit and avg >= score_limit and e != 1:
             main.step_limit += s_step_increase
+
+            # update graf limits
+            step_limit = main.step_limit * s_step_limit_multiplier
+            score_limit = main.step_limit * s_distance_score * s_score_limit_multiplier
 
             # increase random point
             game.random_poit += s_random_point_increase
@@ -175,7 +171,16 @@ class main:
             if DQNA.epsilon > 1:
                 DQNA.epsilon = 1
 
-        return avg, step
+        # save test results for graf
+        info.step_limit = step_limit
+        info.score_limit = score_limit
+        info.avg_scores.append(avg)
+        info.avg_step.append(step)
+        info.test_count.append(e)
+        info.last_step = step
+        info.last_score = avg
+
+        return
 
 
 if __name__ == '__main__':
@@ -204,20 +209,19 @@ if __name__ == '__main__':
 
         # test the model
         if s_test_model:
-            if len(DQNA.replay_memory) == s_deque_memory or e == 1:
-                if e % s_test_rate == 0 or e == 1:
-                    # reset values for testing
-                    main.reset()
+            if e % s_test_rate == 0 or e == 1:
+                # reset values for testing
+                main.reset()
 
-                    # test AI
-                    main.testing_ai(e)
+                # test AI
+                main.testing_ai(e)
 
-                    # reset values for training
-                    main.reset()
+                # reset values for training
+                main.reset()
 
-                    # draw graf
-                    info.print_graf(DQNA.epsilon, e, game.random_poit)
+                # draw graf
+                info.print_graf(DQNA.epsilon, e, game.random_poit)
 
-                # update graf values
-                elif e % 100 == 0:
-                    info.print_graf(DQNA.epsilon, e, game.random_poit)
+            # update graf values
+            elif e % 50 == 0:
+                info.print_graf(DQNA.epsilon, e, game.random_poit)

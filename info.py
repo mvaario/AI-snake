@@ -4,7 +4,7 @@ from settings import *
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-
+import time
 
 class info:
     def __init__(self, tf):
