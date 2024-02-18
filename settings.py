@@ -28,7 +28,7 @@ s_state_size = 32
 s_lr_rate = 0.001
 s_discount = 0.95
 s_update_rate = 3
-s_epochs = 3
+s_epochs = 5
 
 # game amount = memory len = batch size
 s_game_amount = 512
@@ -36,7 +36,7 @@ s_batch_size = 512
 s_deque_memory = 512
 
 # add snake until len is
-s_point_until = 16
+s_point_until = 50
 # add snake %
 s_start_random_point = 0.1
 
@@ -51,13 +51,13 @@ s_step_increase = 10
 s_random_point_increase = 0.05
 
 # load / save settings
-s_functional_model = True
-s_load_model = False
-s_load_model_name = 'Sequential_model_128x128x64_episodes_10000.model'
+s_functional_model = False
+s_load_model = True
+s_load_model_name = 'Sequential_model_128x128x64V2_episodes_50000.model'
 s_save_model = True
 # save rate uses steps not games
 s_save_rate = 10000
-s_save_model_name = 'Sequential_model_128x128x64V2'
+s_save_model_name = 'Sequential_model_128x128x64V3'
 
 
 

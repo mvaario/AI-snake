@@ -13,8 +13,9 @@ class main:
         self.ori_state = np.zeros(s_state_size)
         # rewards and step
         self.step = np.zeros([s_game_amount, 1])
-        self.game_reward = 0
         self.step_limit = s_start_step_limit
+
+        self.validation_reward = 0
 
     # Create state
     def create_state(self, snake, done):
@@ -75,8 +76,7 @@ class main:
         step_reward = game.reward_calculation(point, snake_number)
 
         if r_testing:
-            # game reward for testing
-            self.game_reward += step_reward
+            self.validation_reward += step_reward
         else:
             # create new state
             next_state = main.create_state(game.snake[snake_number], done)
@@ -104,7 +104,7 @@ class main:
     def reset(self):
         # testing uses different number of games
         self.step = np.zeros([s_game_amount, 1])
-        self.game_reward = 0
+        self.validation_reward = 0
 
         game.snake = np.zeros([s_game_amount, s_size[0] * s_size[1], 2])
         game.done = np.ones(s_game_amount, dtype=bool)
@@ -114,7 +114,7 @@ class main:
         return
 
     # testing the AI with new games
-    def testing_ai(self, e):
+    def model_validation(self, e):
         r_testing = True
         steps = 0
 
@@ -146,7 +146,7 @@ class main:
 
     # increase difficulty based on test results
     def increase_difficulty(self, steps, e):
-        avg = main.game_reward / s_test_games
+        avg = main.validation_reward / s_test_games
         step = steps / s_test_games
 
         # check limits
@@ -214,7 +214,7 @@ if __name__ == '__main__':
                 main.reset()
 
                 # test AI
-                main.testing_ai(e)
+                main.model_validation(e)
 
                 # reset values for training
                 main.reset()
@@ -223,5 +223,5 @@ if __name__ == '__main__':
                 info.print_graf(DQNA.epsilon, e, game.random_poit)
 
             # update graf values
-            elif e % 50 == 0:
+            elif e % 100 == 0:
                 info.print_graf(DQNA.epsilon, e, game.random_poit)
