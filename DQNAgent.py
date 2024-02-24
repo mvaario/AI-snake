@@ -3,9 +3,8 @@ from tensorflow import keras
 from collections import deque
 import numpy as np
 import random
-from tensorflow.python.keras.callbacks import TensorBoard
+# from tensorflow.python.keras.callbacks import TensorBoard
 import time
-
 
 class DQNAgent:
     def __init__(DQNA, input_shape):
@@ -31,16 +30,16 @@ class DQNAgent:
         # apple input
         input_head_apple = keras.Input(4, name='Head_apple')
         head_apple = keras.layers.Flatten(name='Head_apple_flatten')(input_head_apple)
-        head_apple = keras.layers.Dense(8, activation='relu')(head_apple)
+        head_apple = keras.layers.Dense(16, activation='relu')(head_apple)
 
         # snake body input, including the head
         if snake_body > 0:
             input_snake = keras.Input(snake_body+2, name='Snake_body')
             snake = keras.layers.Flatten(name='Snake_flatten')(input_snake)
 
-            snake = keras.layers.Dense(128, activation='relu')(snake)
+            snake = keras.layers.Dense(64, activation='relu')(snake)
 
-            # snake = keras.layers.Dense(128, activation='relu')(snake)
+            snake = keras.layers.Dense(64, activation='relu')(snake)
 
             # snake = keras.layers.Dense(64, activation='relu')(snake)
 
@@ -104,6 +103,7 @@ class DQNAgent:
         if len(DQNA.replay_memory) < s_deque_memory:
             return
 
+        # train specific model
         if s_functional_model:
             DQNA.train_functional_model()
         else:
@@ -177,6 +177,7 @@ class DQNAgent:
             # callbacks=[tensorboard],
             epochs=s_epochs
         )
+
         return
 
     def train_functional_model(DQNA):

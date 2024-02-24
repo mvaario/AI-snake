@@ -7,7 +7,7 @@ import tensorflow as tf
 import time
 
 
-class main:
+class MAIN:
     def __init__(self):
         # define state
         self.ori_state = np.zeros(s_state_size)
@@ -59,34 +59,36 @@ class main:
 
     # game states
     def game_states(self, snake_number, r_testing):
-        done = False
         # create state
-        state = main.create_state(game.snake[snake_number], done)
+        state = main.create_state(game.snake[snake_number], game.done[snake_number])
 
         # pick action
         action = DQNA.get_qs(state, r_testing)
 
         # move snake
-        done = game.move_snake(action, snake_number)
+        game.move_snake(snake_number, action)
 
         # check snake
-        point, done = game.check(snake_number, done)
+        point = game.check(snake_number)
+
+        # add snake
+        game.add_snake(snake_number, point)
 
         # reward calculations
-        step_reward = game.reward_calculation(point, snake_number)
+        step_reward = game.reward_calculation(snake_number, point)
 
         if r_testing:
             self.validation_reward += step_reward
         else:
             # create new state
-            next_state = main.create_state(game.snake[snake_number], done)
+            next_state = main.create_state(game.snake[snake_number], game.done[snake_number])
 
             # update memory
             DQNA.update_replay_memory(state,
                                       action,
                                       step_reward,
                                       next_state,
-                                      done
+                                      game.done[snake_number]
                                       )
 
         # reset steps and step limit
@@ -102,19 +104,17 @@ class main:
 
     # reset all for testing
     def reset(self):
-        # testing uses different number of games
         self.step = np.zeros([s_game_amount, 1])
         self.validation_reward = 0
 
         game.snake = np.zeros([s_game_amount, s_size[0] * s_size[1], 2])
         game.done = np.ones(s_game_amount, dtype=bool)
-        game.point = np.zeros(s_game_amount, dtype=bool)
 
         game.last_position = np.zeros([s_game_amount, 2])
         return
 
     # testing the AI with new games
-    def model_validation(self, e):
+    def model_validation(self):
         r_testing = True
         steps = 0
 
@@ -139,10 +139,7 @@ class main:
         # all games done
         cv2.destroyAllWindows()
 
-        # increase difficulty
-        main.increase_difficulty(steps, e)
-
-        return
+        return steps
 
     # increase difficulty based on test results
     def increase_difficulty(self, steps, e):
@@ -150,21 +147,19 @@ class main:
         step = steps / s_test_games
 
         # check limits
-        step_limit = main.step_limit * s_step_limit_multiplier
-        score_limit = main.step_limit * s_distance_score * s_score_limit_multiplier
+        step_limit = self.step_limit * s_step_limit_multiplier
+        score_limit = self.step_limit * s_distance_score * s_score_limit_multiplier
 
         # if steps and scores are good enough increase difficulty
         if step >= step_limit and avg >= score_limit and e != 1:
-            main.step_limit += s_step_increase
+            self.step_limit += s_step_increase
 
             # update graf limits
-            step_limit = main.step_limit * s_step_limit_multiplier
-            score_limit = main.step_limit * s_distance_score * s_score_limit_multiplier
+            step_limit = self.step_limit * s_step_limit_multiplier
+            score_limit = self.step_limit * s_distance_score * s_score_limit_multiplier
 
             # increase random point
-            game.random_poit += s_random_point_increase
-            if game.random_poit >= 1:
-                game.random_poit = 1
+            game.add_len += s_add_len
 
             # increase exploration
             DQNA.epsilon += s_epsilon_increase
@@ -176,21 +171,21 @@ class main:
         info.score_limit = score_limit
         info.avg_scores.append(avg)
         info.avg_step.append(step)
-        info.test_count.append(e)
+        info.episodes.append(e)
         info.last_step = step
         info.last_score = avg
 
         return
 
-
 if __name__ == '__main__':
     # initialize
     input_shape = np.zeros(s_state_size)
     DQNA = DQNAgent(input_shape)
-    info = info(tf)
-    main = main()
-    game = game()
+    info = INFO(tf)
+    main = MAIN()
+    game = GAME()
 
+    start = time.time()
     # define how many episodes (not games, all games with one step)
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit=' episodes'):
         r_testing = False
@@ -213,15 +208,26 @@ if __name__ == '__main__':
                 # reset values for testing
                 main.reset()
 
-                # test AI
-                main.model_validation(e)
+                # model validation
+                steps = main.model_validation()
+
+                # increase difficulty
+                main.increase_difficulty(steps, e)
 
                 # reset values for training
                 main.reset()
 
-                # draw graf
-                info.print_graf(DQNA.epsilon, e, game.random_poit)
+                # check graf lengths FIX THESE
+                info.balance_episodes()
+                info.balance_steps()
+                info.balance_scores()
 
-            # update graf values
-            elif e % 100 == 0:
-                info.print_graf(DQNA.epsilon, e, game.random_poit)
+                # draw graf
+                info.print_graf(DQNA.epsilon, e, game.add_len)
+
+        # funny timer
+        if time.time() - start >= 36_000:
+            print("Times up boy", time.time()-start)
+            quit()
+
+
