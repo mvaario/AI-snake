@@ -15,7 +15,7 @@ s_epsilon_min = 0.1
 s_epsilon_decay = 0.99975
 
 # rewards
-s_penalty = -10
+s_penalty = -15
 s_apple_score = 4
 s_distance_score = 1
 
@@ -31,9 +31,9 @@ s_update_rate = 4
 s_epochs = 3
 
 # game amount = memory len = batch size
-s_game_amount = 512
-s_batch_size = 512
-s_deque_memory = 512
+s_game_amount = 256
+s_batch_size = 64
+s_deque_memory = 256
 
 # limits
 s_start_len = 5
@@ -47,13 +47,14 @@ s_step_increase = 10
 s_add_len = 10
 
 # load / save settings
-s_functional_model = False
-s_load_model = True
-s_load_model_name = 'Sequential_model_64x64x32e3_New_Databalance_episodes_40000.model'
+s_train_model = True
+s_functional_model = True
+s_load_model = False
+s_load_model_name = 'Functional_model_128x128x64e3bsize64_episodes_25926.model'
 s_save_model = True
 # save rate uses steps not games
 s_save_rate = 10_000
-s_save_model_name = 'Sequential_model_64x64x32e3_New_Databalance'
+s_save_model_name = 'Functional_model_128x128x64e3bsize64'
 
 
 

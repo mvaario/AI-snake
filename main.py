@@ -191,7 +191,7 @@ if __name__ == '__main__':
         r_testing = False
         # make multiple games at once
         for snake_number in range(s_game_amount):
-            # create new game
+            # create a new game if needed
             if game.done[snake_number]:
                 game.spawn_snake(snake_number)
                 game.spawn_apple(snake_number)
@@ -227,6 +227,7 @@ if __name__ == '__main__':
 
         # funny timer
         if time.time() - start >= 36_000:
+            DQNA.save_model(e, force=True)
             print("Times up boy", time.time()-start)
             quit()
 
