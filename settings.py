@@ -49,12 +49,12 @@ s_add_len = 10
 # load / save settings
 s_train_model = True
 s_functional_model = True
-s_load_model = False
-s_load_model_name = 'Functional_model_128x128x64e3bsize64_episodes_25926.model'
+s_load_model = True
+s_load_model_name = 'Functional_model_32x128x64e3b32_XY_split_episodes_20000.model'
 s_save_model = True
 # save rate uses steps not games
 s_save_rate = 10_000
-s_save_model_name = 'Functional_model_128x128x64e3bsize64'
+s_save_model_name = 'Functional_model_32x128x64e3b32_XY_split'
 
 
 

@@ -91,6 +91,7 @@ class INFO:
         game = np.uint8(game)
         cv2.imshow("game", game)
         # cv2.moveWindow("game", -520, 40)
+        # cv2.moveWindow("game", 1415, 40)
         cv2.waitKey(s_wait_time)
 
         return

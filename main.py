@@ -20,22 +20,36 @@ class MAIN:
     # Create state
     def create_state(self, snake, done):
         if done:
-            state = np.zeros(s_state_size)
+            state = np.zeros((16, 2))
             return state
 
+        # add apple to the state
         state = []
         lengths = []
+        state.append(snake[0, 0])
+        state.append(snake[0, 1])
+        lengths.append(0)
+
+        snake = snake[1:]
         head_coordinates = np.sum(snake[0])
+        k = 1
         for i in range(len(snake)):
             if len(state) < s_state_size:
-                state.append(snake[i, 0])
-                state.append(snake[i, 1])
+                if np.all(snake[i] != 0):
+                    state.append(snake[i, 0])
+                    state.append(snake[i, 1])
 
-                # get distance from head
-                body_coordinates = np.sum(snake[i])
-                lengths.append(abs(body_coordinates - head_coordinates))
+                    # get distance from head
+                    body_coordinates = np.sum(snake[i])
+                    lengths.append(abs(body_coordinates - head_coordinates))
+                else:
+                    # if state not full add same values again
+                    if np.all(snake[k] == 0):
+                        k = 1
+                    state.append(snake[k, 0])
+                    state.append(snake[k, 1])
+                    k += 1
             else:
-                # if state is full and get 0
                 if np.all(snake[i] == 0):
                     break
                 # check if closer than max
@@ -54,6 +68,7 @@ class MAIN:
 
         state = np.array(state)
         state = state / s_size[1]
+        state = np.reshape(state, (16, 2))
 
         return state
 
@@ -115,15 +130,13 @@ class MAIN:
 
     # testing the AI with new games
     def model_validation(self):
-        r_testing = True
-        steps = 0
-
         # create games
         for snake_number in range(s_test_games):
             game.spawn_snake(snake_number)
             game.spawn_apple(snake_number)
 
         # play all the games one time
+        steps = 0
         while not np.all(game.done):
             # one step every game
             for snake_number in range(s_test_games):
@@ -133,7 +146,7 @@ class MAIN:
                         background = info.draw(snake_number, game.snake)
                         info.screen(background)
 
-                    main.game_states(snake_number, r_testing)
+                    main.game_states(snake_number, r_testing=True)
                     steps += 1
 
         # all games done
@@ -179,8 +192,7 @@ class MAIN:
 
 if __name__ == '__main__':
     # initialize
-    input_shape = np.zeros(s_state_size)
-    DQNA = DQNAgent(input_shape)
+    DQNA = DQNAgent()
     info = INFO(tf)
     main = MAIN()
     game = GAME()
@@ -188,7 +200,6 @@ if __name__ == '__main__':
     start = time.time()
     # define how many episodes (not games, all games with one step)
     for e in tqdm(range(1, s_episodes + 1), ascii=True, unit=' episodes'):
-        r_testing = False
         # make multiple games at once
         for snake_number in range(s_game_amount):
             # create a new game if needed
@@ -197,7 +208,7 @@ if __name__ == '__main__':
                 game.spawn_apple(snake_number)
 
             # all game states
-            main.game_states(snake_number, r_testing)
+            main.game_states(snake_number, r_testing=False)
 
         # Train model
         DQNA.train_model(e)
