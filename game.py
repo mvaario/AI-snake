@@ -1,14 +1,13 @@
 from settings import *
 import numpy as np
-
+import time
 
 class GAME:
     def __init__(self):
-        self.snake = np.zeros([s_game_amount, s_size[0] * s_size[1], 2])
+        self.snake = np.zeros([s_game_amount, s_max_len+2, 2])
         self.done = np.ones(s_game_amount, dtype=bool)
 
         self.last_position = np.zeros([s_game_amount, 2])
-        self.distance_score = s_distance_score
         self.add_len = s_start_len
 
         # all available spots
@@ -18,35 +17,77 @@ class GAME:
 
     # spawn head and body
     def spawn_snake(self, snake_number):
+        # check parameters
+        if s_max_len < self.add_len:
+            print("Start len is bigger than max length")
+            self.add_len = s_max_len
+
         # Clear old snake
         self.snake[snake_number, 0:] = 0
         self.done[snake_number] = False
 
         # spawn snake head
         head = np.random.randint(1, [s_size[0] + 1, s_size[1] + 1], size=2)
-
-        snake_body = np.array([-1, -1])
-        while np.any(snake_body <= 0) or snake_body[0] > s_size[0] or snake_body[1] > s_size[1]:
-            dir = np.random.randint(1, 5)
-            if dir == 1:
-                snake_body[0] = head[0] + 1
-                snake_body[1] = head[1]
-            elif dir == 2:
-                snake_body[0] = head[0] - 1
-                snake_body[1] = head[1]
-            elif dir == 3:
-                snake_body[0] = head[0]
-                snake_body[1] = head[1] + 1
-            elif dir == 4:
-                snake_body[0] = head[0]
-                snake_body[1] = head[1] - 1
-            else:
-                print("Error in spawn snake")
-                print(dir)
-                quit()
-        if s_max_len > 0:
-            self.snake[snake_number, 2] = snake_body
         self.snake[snake_number, 1] = head
+
+        # save head as snake last position
+        self.last_position[snake_number] = head
+
+        # get random snake direction
+        direction = np.random.randint(1, 5)
+        last_direction = direction
+
+        # loop catcher
+        start_time = time.time()
+
+        # from random direction get new position
+        new_position = np.array([0, 0])
+        while np.count_nonzero(self.snake[snake_number]) < (self.add_len + 1) * 2:
+            if time.time() - start_time > 1:
+                print("took too long to spawn snake, with len:", self.add_len)
+                quit()
+            if direction == 1:
+                new_position[0] = self.last_position[snake_number, 0] + 1
+                new_position[1] = self.last_position[snake_number, 1]
+            elif direction == 2:
+                new_position[0] = self.last_position[snake_number, 0] - 1
+                new_position[1] = self.last_position[snake_number, 1]
+            elif direction == 3:
+                new_position[0] = self.last_position[snake_number, 0]
+                new_position[1] = self.last_position[snake_number, 1] + 1
+            elif direction == 4:
+                new_position[0] = self.last_position[snake_number, 0]
+                new_position[1] = self.last_position[snake_number, 1] - 1
+            else:
+                print("bad direction", direction)
+                quit()
+
+            add = True
+            # check new position is on the grid
+            if np.any(new_position <= 0) or new_position[0] > s_size[0] or new_position[1] > s_size[1]:
+                add = False
+                new_position = np.array([0, 0])
+            else:
+                # check new position is not taken
+                for i in range(len(self.snake[snake_number])):
+                    if np.all(self.snake[snake_number, i] == 0):
+                        break
+                    if np.all(self.snake[snake_number, i] == new_position):
+                        add = False
+                        new_position = np.array([0, 0])
+                        break
+            # add new position
+            if add:
+                # add new position
+                self.last_position[snake_number] = new_position
+                self.add_snake(snake_number, point=True)
+                last_direction = direction
+            else:
+                # change direction
+                if last_direction == 1 or last_direction == 2:
+                    direction = np.random.randint(3, 5)
+                else:
+                    direction = np.random.randint(1, 3)
 
         return
 
@@ -95,6 +136,7 @@ class GAME:
     def move_snake(self, snake_number, action):
         snake = np.copy(self.snake[snake_number, 1:])
         snake_copy = np.copy(snake)
+        self.last_position[snake_number] = snake[0]
 
         # move snake head
         if action == 0:
@@ -111,16 +153,17 @@ class GAME:
             quit()
 
         # move snake
-        if np.all(snake[0] == snake[1]):
-            self.done[snake_number] = True
-        else:
-            # move snake body
-            for i in range(len(snake) - 1):
-                # save last position for adding snake
-                if np.any(snake[i + 1] == 0):
-                    self.last_position[snake_number] = snake_copy[i]
-                    break
-                snake[i + 1] = snake_copy[i]
+        if len(snake) > 1:
+            if np.all(snake[0] == snake[1]):
+                self.done[snake_number] = True
+            else:
+                # move snake body
+                for i in range(len(snake) - 1):
+                    # save last position for adding snake
+                    if np.any(snake[i + 1] == 0):
+                        self.last_position[snake_number] = snake_copy[i]
+                        break
+                    snake[i + 1] = snake_copy[i]
 
         self.snake[snake_number, 1:] = snake
         return
@@ -155,6 +198,8 @@ class GAME:
         # check point
         if not done and np.all(head == apple):
             point = True
+            # spawn new apple
+            self.spawn_apple(snake_number)
 
         # save done
         self.done[snake_number] = done
@@ -162,8 +207,18 @@ class GAME:
 
     # add snake
     def add_snake(self, snake_number, point):
+
         snake = self.snake[snake_number]
         body = snake[2:]
+
+        # return if snake len is full
+        if np.count_nonzero(snake[2:]) > s_max_len*2:
+            return
+
+        # disable snake grow
+        if not s_allow_snake_grow:
+            point = False
+
         # point or "random point"
         if point or np.count_nonzero(body) < (self.add_len * 2):
             # Add last position to snake body
@@ -171,9 +226,6 @@ class GAME:
                 if np.all(body[i] == 0):
                     body[i] = self.last_position[snake_number]
                     break
-            if point:
-                # spawn new apple
-                self.spawn_apple(snake_number)
         return
 
     # calculate rewards
@@ -192,19 +244,18 @@ class GAME:
             head = snake[1]
 
             # previous head position
-            if np.all(snake[2] == 0):
+            if len(snake) == 2:
                 last_head = self.last_position[snake_number]
             else:
                 last_head = snake[2]
-
-            score = self.distance_score
 
             distance = abs(apple - head)
             old_distance = abs(apple - last_head)
 
             difference = old_distance - distance
-            step_reward += difference[0] * score
-            step_reward += difference[1] * score
-            step_reward = int(step_reward)
+            step_reward += difference[0] * s_distance_score
+            step_reward += difference[1] * s_distance_score
+            if step_reward < 0:
+                step_reward *= s_distance_score_minus_multiplier
 
         return step_reward
