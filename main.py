@@ -127,7 +127,7 @@ class MAIN:
                 action = keyboard.get_keys()
         else:
             if s_use_ppo:
-                action = PPO.get_action(state, r_testing)
+                action, value, log_prob = PPO.get_action(state, r_testing)
             else:
                 action = DQNA.get_qs(state, r_testing)
 
@@ -152,8 +152,9 @@ class MAIN:
             if s_use_ppo:
                 PPO.update_memory(state,
                                   action,
+                                  log_prob,
+                                  value,
                                   step_reward,
-                                  next_state,
                                   game.done[snake_number]
                                   )
             else:
@@ -286,10 +287,9 @@ if __name__ == '__main__':
 
         # Train model
         if s_use_ppo:
-            ratio, total_loss = PPO.train_model(e)
+            info_ratio = PPO.train_model(e)
             if e % s_test_rate == 0 or e == 1:
-                info.ppo_ratio = np.sum(ratio)
-                info.ppo_loss.append(total_loss)
+                info.ppo_ratio = float(info_ratio)
         else:
             DQNA.train_model(e)
 

@@ -45,8 +45,6 @@ class INFO:
 
         # PPO testing
         self.ppo_ratio = 1
-        self.ppo_loss = []
-
 
     def tensorflow_setups(self, tf):
         # if not s_use_fpu:
@@ -310,19 +308,16 @@ class INFO:
         fig = plt.figure()
 
         # plt prints
-        ratio = round(self.ppo_ratio, 3)
-        plt.title(f'Ratio {ratio}', loc='right')
+        plt.title(f'Ratio {round(self.ppo_ratio, 3)}', loc='right')
         plt.title(f'Min steps: {step_limit} - min scores: {score_limit} - len: {add_len}', loc='left')
         plt.xlabel(f'Episodes {e} - score: {round(self.last_score)} - step: {round(self.last_step)}')
         plt.ylabel("Scores / Steps")
 
         plt.grid(True)
 
-
         # plot scores
         plt.plot(self.all_episodes, self.all_scores, label=f'Scores {round(self.last_score, 2)}')
         plt.plot(self.all_episodes, self.all_steps, label=f'Steps {round(self.last_step, 2)}')
-        plt.plot(self.all_episodes, self.ppo_loss)
 
         # make plot to image
         fig.canvas.draw()

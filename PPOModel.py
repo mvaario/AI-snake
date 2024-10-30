@@ -1,9 +1,10 @@
 import time
-
+from collections import deque
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from settings import *
+import random
 
 
 # Define Actor-Critic Model
@@ -18,7 +19,7 @@ class PPOModel:
         PPO.decay_rate = 0.96
         PPO.epsilon = s_start_epsilon
 
-        PPO.memory = []
+        PPO.memory = deque(maxlen=s_ppo_memory_len)
 
         PPO.actor_network = PPO.create_actor_network()  # policy  network
         PPO.critic_network = PPO.create_critic_network()  # value network
@@ -75,32 +76,32 @@ class PPOModel:
 
         return model
 
-    def update_memory(PPO, state, action, step_reward, next_state, done):
-        PPO.memory.append((state, action, step_reward, next_state, done))
+    def update_memory(PPO, state, action, log_prob, value, step_reward, done):
+        PPO.memory.append((state, action, log_prob, value, step_reward, done))
         return
 
     def get_action(PPO, state, r_testing):
-        # print("r_testing not in use")
-        # Seems like we are shaping the state multiple times
-
         size = -1, PPO.state_size[0], PPO.state_size[1]
         state = np.reshape(state, size)
 
         action_probs = PPO.actor_network(state, training=False)
-
-        # print("Action probabilities:", action_probs[0])
-        # print("Sum of probabilities:", np.sum(action_probs[0]))
-
         # should fix if sum not 1
         action_probs = action_probs.numpy()
 
         if r_testing:
             action = np.argmax(action_probs)
+            log_prob = None
+            value = None
         else:
             # Sample action based on probabilities
             action = np.random.choice(range(action_probs.shape[1]), p=action_probs[0])
+            # Calculate log probability of the chosen action
+            action_onehot = tf.one_hot([action], PPO.action_size)
+            log_prob = tf.reduce_sum(action_onehot * tf.math.log(action_probs + 1e-10), axis=1).numpy()
 
-        return action
+            value = PPO.critic_network(state, training=False).numpy()[0][0]
+
+        return action, value, log_prob
 
     # Function to compute GAE
     def compute_gae(PPO, rewards, values, dones):
@@ -121,73 +122,72 @@ class PPOModel:
         if not s_train_model:
             print("Training is not enabled")
             return
-        if len(PPO.memory) < s_deque_memory:
-            print("ERROR in PPO.memory size", len(PPO.memory))
-            return
+        if len(PPO.memory) < s_ppo_min_memory:
+            # print("ERROR in PPO.memory size", len(PPO.memory))
+            return 1
 
-        ratio, total_loss = PPO.train_sequential_ppo_model()
+        info_ratio = PPO.train_sequential_ppo_model()
 
-        PPO.memory = []
+        # don't clear memory
+        # PPO.memory = []
         PPO.save_model(e, force=False)
 
-        return  ratio, total_loss
+        return info_ratio
 
     def train_sequential_ppo_model(PPO):
+        batch = random.sample(PPO.memory, s_batch_size)
+
         # Gather all experience from the replay buffer
-        states, actions, rewards, next_states, dones = zip(*PPO.memory)
+        states, actions, log_probs_old, values, rewards, done = zip(*batch)
 
         # Convert gathered experience to numpy arrays
         states = np.array(states)
         actions = np.array(actions)
-        rewards = np.array(rewards, dtype=np.float32)  # Ensure rewards are float32
-        next_states = np.array(next_states)
-        dones = np.array(dones)
+        log_probs_old = np.array(log_probs_old)
+        values = np.array(values)
+        rewards = np.array(rewards)
+        done = np.array(done)
 
-        # Get values and next values, compute advantages and target values
-        values = tf.squeeze(PPO.critic_network(states, training=False))  # Use training=False to fix model params
-        next_values = tf.squeeze(PPO.critic_network(next_states, training=False))
-
-        advantages = tf.convert_to_tensor(rewards + PPO.gamma * next_values * (1 - dones) - values, dtype=tf.float32)
-        target_values = tf.convert_to_tensor(rewards + PPO.gamma * next_values * (1 - dones), dtype=tf.float32)
-
-        # Get log probabilities of the actions taken under the old policy
-        action_probs_old = PPO.actor_network(states, training=False)  # Set training=False here
-        actions_onehot = tf.one_hot(actions, PPO.action_size)  # Adjust for action space size
-        log_probs_old = tf.reduce_sum(actions_onehot * tf.math.log(action_probs_old + 1e-10), axis=1)
+        advantages = tf.convert_to_tensor(rewards + PPO.gamma * values * (1 - done) - values, dtype=tf.float32)
 
         # Begin gradient computation and policy update
-        with tf.GradientTape() as tape:
-            # Get new action probabilities (these will change as we update in each batch)
+        with tf.GradientTape(persistent=True) as tape:
+            # Get log probabilities of the actions taken under the old policy
+            actions_onehot = tf.one_hot(actions, PPO.action_size)
+
+            # Get new action probabilities
             new_action_probs = PPO.actor_network(states, training=True)
             log_probs_new = tf.reduce_sum(actions_onehot * tf.math.log(new_action_probs + 1e-10), axis=1)
 
+            critic_value = PPO.critic_network(states, training=True)
+            critic_value = tf.squeeze(critic_value, 1)
+
             # Calculate ratio and clipped ratio
             ratio = tf.exp(log_probs_new - log_probs_old)
+
+            weighted_probs = advantages * ratio
             epsilon = 0.2  # PPO clipping range
-            clipped_ratio = tf.clip_by_value(ratio, 1 - epsilon, 1 + epsilon)
-            advantage = tf.stop_gradient(advantages)
+            clipped_probs = tf.clip_by_value(ratio, 1 - epsilon, 1 + epsilon)
+            weighted_clipped_probs = clipped_probs * advantages
 
-            # Calculate PPO loss
-            ppo_loss = -tf.reduce_mean(tf.minimum(ratio * advantage, clipped_ratio * advantage))
+            actor_loss = -tf.minimum(weighted_probs, weighted_clipped_probs)
+            actor_loss = tf.reduce_mean(actor_loss)
 
-            # Calculate critic loss using updated values
-            values = tf.squeeze(PPO.critic_network(states, training=True))
-            critic_loss = tf.reduce_mean(tf.square(target_values - values))
+            returns = advantages + values
+            critic_loss = keras.losses.MSE(critic_value, returns)
 
-            # Combine losses
-            total_loss = ppo_loss + 0.5 * critic_loss
+        actor_params = PPO.actor_network.trainable_variables
+        actor_grads = tape.gradient(actor_loss, actor_params)
+        critic_param = PPO.critic_network.trainable_variables
+        critic_grads = tape.gradient(critic_loss, critic_param)
 
-        # Compute gradients and apply
-        grads = tape.gradient(total_loss,
-                              PPO.actor_network.trainable_variables + PPO.critic_network.trainable_variables)
+        PPO.actor_optimizer.apply_gradients(zip(actor_grads, actor_params))
+        PPO.critic_optimizer.apply_gradients(zip(critic_grads, critic_param))
 
-        # Split gradients for each network and apply separately
-        PPO.actor_optimizer.apply_gradients(zip(grads[:len(PPO.actor_network.trainable_variables)],
-                                                PPO.actor_network.trainable_variables))
-        PPO.critic_optimizer.apply_gradients(zip(grads[len(PPO.actor_network.trainable_variables):],
-                                                 PPO.critic_network.trainable_variables))
-
-        return ratio, total_loss
+        info_ratio = np.copy(ratio)
+        info_ratio = np.sum(info_ratio)
+        info_ratio = info_ratio / 64
+        return info_ratio
 
     # save model
     def save_model(PPO, e, force):
