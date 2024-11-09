@@ -123,7 +123,7 @@ class DQNAgent:
             try:
                 model = keras.models.load_model(f'/home/huxiez/Python/Shared/AI_Snake/models/{s_load_model_name}')
             except:
-                model = keras.models.load_model(f'\\{s_path}\\{s_load_model_name}')
+                model = keras.models.load_model(f'\\{s_windows_path}\\{s_load_model_name}')
 
             print("")
             print(f'Model {s_load_model_name} loaded')

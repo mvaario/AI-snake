@@ -1,5 +1,3 @@
-# import time
-# import keras.backend
 from settings import *
 import numpy as np
 import cv2
@@ -14,8 +12,6 @@ class INFO:
         self.step_limit = 0
         self.avg_scores = []
         self.avg_step = []
-        self.last_score = 0
-        self.last_step = 0
         self.episodes = []
         self.tensorflow_setups(tf)
         self.state = []
@@ -43,8 +39,8 @@ class INFO:
 
         self.loop_start = time.time()
 
-        # PPO testing
-        self.ppo_ratio = 1
+        # ppo test
+        self.ppo_lr_rate = s_lr_rate
 
     def tensorflow_setups(self, tf):
         # if not s_use_fpu:
@@ -82,16 +78,20 @@ class INFO:
         return
 
     # draw the game
-    def draw(self, snake_number, snake):
+    def draw(self, snake_number, snake, apple):
         snake = np.copy(snake[snake_number])
-        apple = snake[0]
-        head = snake[1]
-        body = snake[2:]
+        apple = np.copy(apple[snake_number])
+        head = snake[0]
+        body = snake[1:]
 
         # draw everything
         background = np.zeros((s_size[0], s_size[1], 3), dtype=np.uint8)
-        background[int(apple[0] - 1), int(apple[1] - 1)] = s_red
         background[int(head[0] - 1), int(head[1] - 1)] = s_green
+
+        for i in range(len(apple)):
+            if np.any(apple[i] == 0):
+                break
+            background[int(apple[i, 0] - 1), int(apple[i, 1] - 1)] = s_red
 
         for i in range(len(body)):
             if np.any(body[i] == 0):
@@ -305,19 +305,22 @@ class INFO:
         step_limit = round(self.step_limit)
         add_len = round(add_len)
 
-        fig = plt.figure()
+        # Create the main plot
+        fig, ax = plt.subplots()
+        ax.grid(True)
 
         # plt prints
-        plt.title(f'Ratio {round(self.ppo_ratio, 3)}', loc='right')
-        plt.title(f'Min steps: {step_limit} - min scores: {score_limit} - len: {add_len}', loc='left')
-        plt.xlabel(f'Episodes {e} - score: {round(self.last_score)} - step: {round(self.last_step)}')
+        plt.title(f'lr rate {f"{float(f'{self.ppo_lr_rate:.6f}')}"}', loc='right')
+        plt.title(f'Next level  steps:{step_limit}   scores:{score_limit}', loc='left')
+        plt.xlabel(f'Episodes:{e}   score:{round(self.all_scores[-1])}   step:{round(self.all_steps[-1])}   len:{add_len}')
         plt.ylabel("Scores / Steps")
 
-        plt.grid(True)
+        # plot scores and steps
+        ax.plot(self.all_episodes, self.all_scores * 10, label=f'Scores: {round(self.all_scores[-1], 2)}')
+        ax.plot(self.all_episodes, self.all_steps, label=f'Steps: {round(self.all_steps[-1], 2)}')
 
-        # plot scores
-        plt.plot(self.all_episodes, self.all_scores, label=f'Scores {round(self.last_score, 2)}')
-        plt.plot(self.all_episodes, self.all_steps, label=f'Steps {round(self.last_step, 2)}')
+        # to make sure labels shows
+        plt.legend(loc='upper left')
 
         # make plot to image
         fig.canvas.draw()

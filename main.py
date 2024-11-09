@@ -23,7 +23,7 @@ class MAIN:
         # sort order
         self.sort_order = []
 
-    # Create state using closest snake postions
+    # Create state using the closest snake positions
     def create_custom_state(self, snake, done):
         if done:
             state = np.zeros(s_state_size)
@@ -85,14 +85,11 @@ class MAIN:
         return state
 
     # Create image like state
-    def create_state(self, snake, done):
+    def create_state(self, snake, apple, done):
         # this is that one bs thing... without using copy snake will change
         snake_copy = np.copy(snake)
+        apple_copy = np.copy(apple)
         state = np.zeros(s_state_size)
-        # state[:, 0] = -1
-        # state[0, :] = -1
-        # state[11, :] = -1
-        # state[:, 11] = -1
         if done:
             return state
         # (y, x)
@@ -104,22 +101,28 @@ class MAIN:
             position[0] -= 1
             position[1] -= 1
             if i == 0:
-                state[int(position[0]), int(position[1])] = 3
-            elif i == 1:
                 state[int(position[0]), int(position[1])] = 2
             else:
                 state[int(position[0]), int(position[1])] = 1
+
+        for i in range(len(apple_copy)):
+            position = apple_copy[i]
+            if sum(position) == 0:
+                break
+            position[0] -= 1
+            position[1] -= 1
+            state[int(position[0]), int(position[1])] = 3
 
         return state
 
     # game states
     def game_states(self, snake_number, r_testing):
         # create state
-        state = main.create_state(game.snake[snake_number], game.done[snake_number])
+        state = main.create_state(game.snake[snake_number], game.apple[snake_number], game.done[snake_number])
 
         # pick action
         if s_control and snake_number == 0 and r_testing:
-            background = info.draw(snake_number, game.snake)
+            background = info.draw(snake_number, game.snake, game.apple)
             action = None
             print("keyboard control enabled")
             while action == None:
@@ -146,7 +149,7 @@ class MAIN:
 
         if not r_testing:
             # create new state
-            next_state = main.create_state(game.snake[snake_number], game.done[snake_number])
+            next_state = main.create_state(game.snake[snake_number], game.apple[snake_number], game.done[snake_number])
 
             # update memory
             if s_use_ppo:
@@ -166,7 +169,7 @@ class MAIN:
                                           )
 
         else:
-            self.validation_reward += step_reward
+            self.validation_reward += point
 
         # reset steps and step limit
         if game.done[snake_number]:
@@ -184,7 +187,8 @@ class MAIN:
         self.step = np.zeros([games, 1])
         self.validation_reward = 0
 
-        game.snake = np.zeros([games, s_max_len + 2, 2])
+        game.snake = np.zeros([games, s_max_len, 2])
+        game.apple = np.zeros([games, s_apple_amount, 2])
         game.done = np.ones(games, dtype=bool)
 
         game.last_position = np.zeros([games, 2])
@@ -205,12 +209,10 @@ class MAIN:
                 if not game.done[snake_number]:
                     # show game
                     if snake_number == 0:
-                        background = info.draw(snake_number, game.snake)
+                        background = info.draw(snake_number, game.snake, game.apple)
                         info.screen(background)
-
                     main.game_states(snake_number, r_testing=True)
                     steps += 1
-
         return steps
 
     # increase difficulty based on test results
@@ -221,21 +223,17 @@ class MAIN:
         # check limits
         step_limit = self.step_limit * s_step_limit_multiplier
         # score calculation
-        assumed_apple_score = (step_limit / s_size[0]) * s_apple_score
-        assumed_step_scores = step_limit * s_distance_score
-        score_limit = (assumed_apple_score + assumed_step_scores) * s_score_limit_multiplier
+        score_limit = (step_limit / s_size[0]) * s_score_limit_multiplier
 
         # if steps and scores are good enough increase difficulty
         if step >= step_limit and avg >= score_limit and e != 1:
             self.step_limit += s_step_increase
 
-            # check limits
+            # calculate new step limit
             step_limit = self.step_limit * s_step_limit_multiplier
-            # score calculation
-            assumed_apple_score = (step_limit / s_size[0]) * s_apple_score
-            assumed_step_scores = step_limit * s_distance_score
-            score_limit = (assumed_apple_score + assumed_step_scores) * s_score_limit_multiplier
 
+            # calculate new score limit
+            score_limit = (step_limit / s_size[0]) * s_score_limit_multiplier
 
             # increase snake start length
             game.add_len += s_add_len
@@ -243,11 +241,11 @@ class MAIN:
                 # if more than 75 possibly to die on start
                 game.add_len = 75
 
-
             # increase exploration
-            DQNA.epsilon += s_epsilon_increase
-            if DQNA.epsilon > 1:
-                DQNA.epsilon = 1
+            if not s_use_ppo:
+                DQNA.epsilon += s_epsilon_increase
+                if DQNA.epsilon > 1:
+                    DQNA.epsilon = 1
 
         # save test results for graf
         info.step_limit = step_limit
@@ -255,8 +253,6 @@ class MAIN:
         info.avg_scores.append(avg)
         info.avg_step.append(step)
         info.episodes.append(e)
-        info.last_step = step
-        info.last_score = avg
 
         return
 
@@ -287,9 +283,9 @@ if __name__ == '__main__':
 
         # Train model
         if s_use_ppo:
-            info_ratio = PPO.train_model(e)
+            current_lr = PPO.train_model(e)
             if e % s_test_rate == 0 or e == 1:
-                info.ppo_ratio = float(info_ratio)
+                info.ppo_lr_rate = float(current_lr)
         else:
             DQNA.train_model(e)
 
@@ -319,11 +315,3 @@ if __name__ == '__main__':
                 else:
                     info.ppo_graf(e, game.add_len)
 
-        # funny timer
-        # if time.time() - start >= 7200:
-        # if self.step_limit > 50:
-        #     info.print_graf(DQNA.epsilon, e, game.add_len)
-        #     DQNA.save_model(e, force=True)
-        #     print("Times up boy", time.time()-start)
-        #     input()
-        #     quit()
